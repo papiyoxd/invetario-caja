@@ -1,506 +1,357 @@
-// CONFIGURACIÓN DE FIREBASE
+// ==========================================
+// CONFIGURACIÓN DE FIREBASE (Usa tus credenciales reales aquí)
+// ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyC3n7TnjNWqTz4aoCgzT23-2dt2_Ot73zQ",
-    authDomain: "inventario-caja.firebaseapp.com",
-    projectId: "inventario-caja",
-    storageBucket: "inventario-caja.firebasestorage.app",
-    messagingSenderId: "1046473810130",
-    appId: "1:1046473810130:web:c4fefca1f1ee318ee8cd0b"
+    apiKey: "TU_API_KEY",
+    authDomain: "TU_AUTH_DOMAIN",
+    projectId: "TU_PROJECT_ID",
+    storageBucket: "TU_STORAGE_BUCKET",
+    messagingSenderId: "TU_MESSAGING_SENDER_ID",
+    appId: "TU_APP_ID"
 };
 
-firebase.initializeApp(firebaseConfig);
+// Inicializar Firebase si no se ha hecho
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-let productos = [];
-let ventas = [];
+// ==========================================
+// VARIABLES GLOBALES Y ESTADO
+// ==========================================
+let currentUser = null;
 let carrito = [];
-let usuarioActivo = JSON.parse(localStorage.getItem("session_activa")) || null;
-let metodoPagoSeleccionado = "EFECTIVO";
-let servicioSeleccionado = "MESA";
+let productosGlobales = [];
 
-let efectivoGlobalHoy = 0;
-let qrGlobalHoy = 0;
-let totalGlobalHoy = 0;
+// Elementos del DOM
+const productsGrid = document.getElementById('productsGrid');
+const ticketList = document.getElementById('ticketList');
+const txtTotal = document.getElementById('txtTotal');
+const btnPay = document.getElementById('btnPay');
+const searchInp = document.getElementById('searchInp');
+const loginOverlay = document.getElementById('loginOverlay');
+const loginForm = document.getElementById('loginForm');
+const toastSuccess = document.getElementById('toastSuccess');
 
-document.addEventListener("DOMContentLoaded", () => {
-    configurarNavegacionTab();
-    vincularEventosAdicionales();
+// Elementos de Navegación
+const menuButtons = document.querySelectorAll('.menu-item');
+const sections = document.querySelectorAll('.content-section');
+const pageTitle = document.getElementById('pageTitle');
 
-    if (usuarioActivo) {
-        document.getElementById("userProfileName").innerText = usuarioActivo.user;
-        arrancarSincronizacionSaaS(usuarioActivo.restauranteId || "pollo1");
-        aplicarPermisosRol(usuarioActivo.role || "admin", usuarioActivo.user);
-        document.getElementById("loginOverlay").style.display = "none";
+// ==========================================
+// CONTROL DE MÓDULOS / NAVEGACIÓN
+// ==========================================
+menuButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-target');
+        if (!target) return;
+
+        // Cambiar botón activo del menú
+        menuButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Cambiar sección visible
+        sections.forEach(sec => sec.classList.remove('active-section'));
+        const targetSec = document.getElementById(target);
+        if (targetSec) targetSec.classList.add('active-section');
+
+        // Actualizar título de la barra superior
+        pageTitle.textContent = btn.textContent.trim();
+    });
+});
+
+// ==========================================
+// INICIO DE SESIÓN COMPACTO
+// ==========================================
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userInp = document.getElementById('username').value.trim();
+    const passInp = document.getElementById('password').value;
+
+    try {
+        const snapshot = await db.collection('users').where('username', '==', userInp).get();
+        if (snapshot.empty) {
+            alert('Usuario no encontrado');
+            return;
+        }
+
+        let userData = null;
+        snapshot.forEach(doc => { userData = doc.data(); });
+
+        if (userData.password === passInp) {
+            currentUser = userData;
+            document.getElementById('userProfileName').textContent = currentUser.username;
+            document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
+            document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
+
+            // Restricción de rol
+            if (currentUser.role !== 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            } else {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            }
+
+            loginOverlay.style.display = 'none';
+            cargarProductos();
+            cargarFlujoHoy();
+        } else {
+            alert('Contraseña incorrecta');
+        }
+    } catch (error) {
+        console.error("Error en login:", error);
     }
 });
 
-function vincularEventosAdicionales() {
-    document.getElementById("btnPayEfectivo").addEventListener("click", () => seleccionarMetodoPago("EFECTIVO"));
-    document.getElementById("btnPayQR").addEventListener("click", () => seleccionarMetodoPago("QR"));
-    document.getElementById("btnServMesa").addEventListener("click", () => seleccionarServicio("MESA"));
-    document.getElementById("btnServLlevar").addEventListener("click", () => seleccionarServicio("LLEVAR"));
-    document.getElementById("btnLimpiarOrden").addEventListener("click", limpiarCarrito);
-    document.getElementById("btnArqueoCaja").addEventListener("click", ejecutarArqueoCaja);
-}
-
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const uInp = document.getElementById("username").value.trim().toLowerCase();
-    const pInp = document.getElementById("password").value;
-
-    try {
-        const snapshot = await db.collection("usuarios").where("user", "==", uInp).where("pass", "==", pInp).get();
-        if (!snapshot.empty) {
-            let cuenta = snapshot.docs[0].data();
-            usuarioActivo = cuenta;
-            localStorage.setItem("session_activa", JSON.stringify(usuarioActivo));
-            
-            document.getElementById("userProfileName").innerText = cuenta.user;
-            arrancarSincronizacionSaaS(cuenta.restauranteId || "pollo1");
-            aplicarPermisosRol(cuenta.role || "admin", cuenta.user);
-            document.getElementById("loginOverlay").style.display = "none";
-            document.getElementById("loginForm").reset();
-        } else {
-            alert("Credenciales incorrectas.");
-        }
-    } catch(err) { alert("Error: " + err); }
+// Salir del sistema
+document.getElementById('btnLogout').addEventListener('click', () => {
+    currentUser = null;
+    loginOverlay.style.display = 'flex';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
 });
 
-function arrancarSincronizacionSaaS(restauranteId) {
-    db.collection("productos").where("restauranteId", "==", restauranteId).onSnapshot((snapshot) => {
-        productos = [];
-        snapshot.forEach(doc => {
-            let data = doc.data();
-            data.id = doc.id;
-            productos.push(data);
+// ==========================================
+// RENDERIZADO DE PRODUCTOS (CAJA POS)
+// ==========================================
+async function cargarProductos() {
+    try {
+        db.collection('products').onSnapshot(snapshot => {
+            productosGlobales = [];
+            productsGrid.innerHTML = '';
+            
+            snapshot.forEach(doc => {
+                const prod = { id: doc.id, ...doc.data() };
+                productosGlobales.push(prod);
+                renderizarTarjetaProducto(prod);
+            });
         });
-        renderizarProductosPOS();
-        renderizarTablaInventario();
-    });
-
-    db.collection("ventas").where("restauranteId", "==", restauranteId).onSnapshot((snapshot) => {
-        ventas = [];
-        snapshot.forEach(doc => { ventas.push(doc.data()); });
-        ventas.sort((a,b) => b.fechaMilisegundos - a.fechaMilisegundos);
-        
-        calcularReportesYProductos();
-        renderizarHistorialVentas();
-        renderizarReporteDiarioCajaMonitor();
-    });
+    } catch (error) {
+        console.error("Error cargando productos:", error);
+    }
 }
 
-function aplicarPermisosRol(role, username) {
-    const badge = document.getElementById("userRoleBadge");
-    const avatar = document.getElementById("userAvatar");
-    if(badge) badge.innerText = role === "admin" ? "Administrador" : "Cajero";
-    if(avatar) avatar.innerText = username.substring(0, 1).toUpperCase();
+function renderizarTarjetaProducto(prod) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    // Validar imagen o poner icono por defecto
+    const imgContent = prod.imageUrl 
+        ? `<img src="${prod.imageUrl}" alt="${prod.name}">` 
+        : `<i class="fa-solid fa-utensils text-slate-400"></i>`;
 
-    const elementosAdmin = document.querySelectorAll(".admin-only");
-    elementosAdmin.forEach(el => {
-        el.style.display = role === "admin" ? "flex" : "none";
-    });
-}
-
-function renderizarProductosPOS() {
-    const grid = document.getElementById("productsGrid");
-    if(!grid) return;
-    grid.innerHTML = "";
-
-    productos.forEach((p) => {
-        const imgCont = p.imagenUrl ? `<img src="${p.imagenUrl}">` : `<i class="fa-solid fa-utensils"></i>`;
-        grid.innerHTML += `
-            <div class="product-card" data-name="${p.nombre.toLowerCase()}">
-                <div class="prod-stock">${p.stock} u</div>
-                <div class="prod-img">${imgCont}</div>
-                <div class="prod-details">
-                    <h4>${p.nombre}</h4>
-                    <span class="category">${p.categoria}</span>
-                    <div class="prod-footer">
-                        <span class="price">${p.precio.toFixed(2)} Bs.</span>
-                        <button class="btn-add" onclick="agregarAlCarrito('${p.id}')">+</button>
-                    </div>
-                </div>
+    card.innerHTML = `
+        <span class="prod-stock">${prod.stock} u</span>
+        <div class="prod-img">${imgContent}</div>
+        <div class="prod-details">
+            <h4>${prod.name}</h4>
+            <div class="flex justify-between items-center mt-1">
+                <span class="text-xs font-black text-slate-700">${parseFloat(prod.price).toFixed(2)} Bs.</span>
+                <button class="btn-add-fast" onclick="agregarAlCarrito('${prod.id}')">+</button>
             </div>
-        `;
-    });
+        </div>
+    `;
+    productsGrid.appendChild(card);
 }
 
-function agregarAlCarrito(idDoc) {
-    const prod = productos.find(p => p.id === idDoc);
-    if (!prod || prod.stock <= 0) {
-        alert("¡No quedan existencias en el inventario!");
+// Buscador en tiempo real
+searchInp.addEventListener('input', () => {
+    const query = searchInp.value.toLowerCase();
+    productsGrid.innerHTML = '';
+    productosGlobales.forEach(prod => {
+        if (prod.name.toLowerCase().includes(query)) {
+            renderizarTarjetaProducto(prod);
+        }
+    });
+});
+
+// ==========================================
+// GESTIÓN DEL CARRITO / TICKET DE VENTA
+// ==========================================
+window.agregarAlCarrito = function(id) {
+    const prod = productosGlobales.find(p => p.id === id);
+    if (!prod) return;
+
+    if (prod.stock <= 0) {
+        alert("¡Producto sin stock disponible!");
         return;
     }
 
-    const itemExistente = carrito.find(item => item.id === idDoc);
-    if (itemExistente) {
-        if(itemExistente.get_stock_total >= prod.stock) {
+    const itemCar = carrito.find(c => c.id === id);
+    if (itemCar) {
+        if (itemCar.cantidad >= prod.stock) {
             alert("No puedes agregar más de lo que hay en stock.");
             return;
         }
-        itemExistente.cantidad += 1;
+        itemCar.cantidad++;
     } else {
         carrito.push({
             id: prod.id,
-            nombre: prod.nombre,
-            precio: prod.precio,
+            name: prod.name,
+            price: prod.price,
             cantidad: 1
         });
     }
-    actualizarTicketVisual();
+    actualizarTicketDOM();
+};
+
+function actualizarTicketDOM() {
+    ticketList.innerHTML = '';
+    let total = 0;
+
+    carrito.forEach((item, index) => {
+        const subtotalItem = item.price * item.cantidad;
+        total += subtotalItem;
+
+        const row = document.createElement('div');
+        row.className = 'ticket-item';
+        row.innerHTML = `
+            <div class="flex flex-col">
+                <span class="font-bold text-slate-800 text-xs">${item.name}</span>
+                <span class="item-qty text-[11px]">Cantidad: x${item.cantidad}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-700">${subtotalItem.toFixed(2)} Bs.</span>
+                <button onclick="removerDelCarrito(${index})" class="text-red-500 text-xs p-1"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+        `;
+        ticketList.appendChild(row);
+    });
+
+    txtTotal.textContent = `${total.toFixed(2)} Bs.`;
+    btnPay.disabled = carrito.length === 0;
 }
 
-function limpiarCarrito() {
+window.removerDelCarrito = function(index) {
+    carrito.splice(index, 1);
+    actualizarTicketDOM();
+};
+
+document.getElementById('btnLimpiarOrden').addEventListener('click', () => {
     carrito = [];
-    actualizarTicketVisual();
-}
+    actualizarTicketDOM();
+});
 
-function seleccionarMetodoPago(metodo) {
-    metodoPagoSeleccionado = metodo;
-    document.getElementById("btnPayEfectivo").classList.remove("active");
-    document.getElementById("btnPayQR").classList.remove("active");
-    if(metodo === "EFECTIVO") document.getElementById("btnPayEfectivo").classList.add("active");
-    if(metodo === "QR") document.getElementById("btnPayQR").classList.add("active");
-}
+// Botones de opciones (Mesa/Llevar - Efectivo/QR)
+let servicioSeleccionado = "Mesa";
+let pagoSeleccionado = "Efectivo";
 
-function seleccionarServicio(tipo) {
-    servicioSeleccionado = tipo;
-    document.getElementById("btnServMesa").classList.remove("active");
-    document.getElementById("btnServLlevar").classList.remove("active");
-    if(tipo === "MESA") document.getElementById("btnServMesa").classList.add("active");
-    if(tipo === "LLEVAR") document.getElementById("btnServLlevar").classList.add("active");
-}
+document.getElementById('btnServMesa').addEventListener('click', function() {
+    this.classList.add('active'); document.getElementById('btnServLlevar').classList.remove('active');
+    servicioSeleccionado = "Mesa";
+});
+document.getElementById('btnServLlevar').addEventListener('click', function() {
+    this.classList.add('active'); document.getElementById('btnServMesa').classList.remove('active');
+    servicioSeleccionado = "Llevar";
+});
+document.getElementById('btnPayEfectivo').addEventListener('click', function() {
+    this.classList.add('active'); document.getElementById('btnPayQR').classList.remove('active');
+    pagoSeleccionado = "Efectivo";
+});
+document.getElementById('btnPayQR').addEventListener('click', function() {
+    this.classList.add('active'); document.getElementById('btnPayEfectivo').classList.remove('active');
+    pagoSeleccionado = "QR";
+});
 
-function actualizarTicketVisual() {
-    const list = document.getElementById("ticketList");
-    let subtotal = 0;
-    if(!list) return;
-    list.innerHTML = "";
+// ==========================================
+// PROCESAR FACTURACIÓN / COMANDA
+// ==========================================
+btnPay.addEventListener('click', async () => {
+    if (carrito.length === 0) return;
 
-    carrito.forEach(item => {
-        let costoLinea = item.precio * item.cantidad;
-        subtotal += costoLinea;
-        list.innerHTML += `
-            <div class="ticket-item">
-                <div>
-                    <h5 class="font-bold text-slate-800 text-sm">${item.nombre}</h5>
-                    <small class="text-slate-500 font-medium">Cantidad: x${item.cantidad}</small>
-                </div>
-                <div class="font-bold text-slate-800 text-sm">${costoLinea.toFixed(2)} Bs.</div>
-            </div>
-        `;
-    });
+    btnPay.disabled = true;
+    let totalFactura = 0;
+    const itemsResumen = carrito.map(i => {
+        totalFactura += (i.price * i.cantidad);
+        return `${i.name} (x${i.cantidad})`;
+    }).join(', ');
 
-    document.getElementById("txtSubtotal").innerText = `${subtotal.toFixed(2)} Bs.`;
-    document.getElementById("txtTotal").innerText = `${subtotal.toFixed(2)} Bs.`;
-    document.getElementById("btnPay").disabled = carrito.length === 0;
-}
-
-function mostrarAlertaFacturaExitosa() {
-    const toast = document.getElementById("toastSuccess");
-    if(toast) {
-        toast.classList.add("show");
-        setTimeout(() => { toast.classList.remove("show"); }, 3000);
-    }
-}
-
-document.getElementById("btnPay").addEventListener("click", async () => {
-    let totalCobrado = 0;
-    let itemsMapeados = [];
-    let itemsTextoFormateado = [];
-
-    for (let item of carrito) {
-        let costoLinea = item.precio * item.cantidad;
-        totalCobrado += costoLinea;
-        
-        for(let i=0; i<item.cantidad; i++) {
-            itemsMapeados.push(item.nombre);
-        }
-        itemsTextoFormateado.push(`${item.nombre} (x${item.cantidad})`);
-
-        await db.collection("productos").doc(item.id).update({
-            stock: firebase.firestore.FieldValue.increment(-item.cantidad)
-        });
-    }
-
-    const hoy = new Date();
     const nuevaVenta = {
-        restauranteId: usuarioActivo.restauranteId || "pollo1",
-        fechaMilisegundos: Date.now(),
-        fechaCompleta: hoy.toLocaleString(),
-        fechaCorta: hoy.toLocaleDateString(),
-        diaSemana: hoy.getDay(), 
-        usuario: usuarioActivo.user,
-        itemsArray: itemsMapeados, 
-        itemsTexto: itemsTextoFormateado.join(", "),
-        total: parseFloat(totalCobrado.toFixed(2)),
-        metodoPago: metodoPagoSeleccionado,
-        servicio: servicioSeleccionado
+        fecha: firebase.firestore.Timestamp.now(),
+        cajero: currentUser.username,
+        items: itemsResumen,
+        servicio: servicioSeleccionado,
+        pago: pagoSeleccionado,
+        monto: totalFactura
     };
 
-    db.collection("ventas").add(nuevaVenta).then(() => {
+    try {
+        // 1. Guardar la venta en Firebase
+        await db.collection('sales').add(nuevaVenta);
+
+        // 2. Descontar el stock de cada producto vendido
+        for (const item of carrito) {
+            const prodRef = db.collection('products').doc(item.id);
+            await db.runTransaction(async (transaction) => {
+                const sfDoc = await transaction.get(prodRef);
+                if (!sfDoc.exists) return;
+                const nuevoStock = sfDoc.data().stock - item.cantidad;
+                transaction.update(prodRef, { stock: nuevoStock >= 0 ? nuevoStock : 0 });
+            });
+        }
+
+        // Mostrar Toast de éxito animado
+        toastSuccess.classList.add('show');
+        setTimeout(() => { toastSuccess.classList.remove('show'); }, 3500);
+
+        // Limpiar carrito
         carrito = [];
-        seleccionarMetodoPago("EFECTIVO");
-        seleccionarServicio("MESA");
-        actualizarTicketVisual();
-        mostrarAlertaFacturaExitosa();
-    }).catch(err => alert("Error: " + err));
-});
-
-function renderizarReporteDiarioCajaMonitor() {
-    const tbody = document.getElementById("tableCajeroPersonalBody");
-    const lblTotal = document.getElementById("lblMiTotalHoy");
-    if(!tbody) return;
-
-    tbody.innerHTML = "";
-    const hoyStr = new Date().toLocaleDateString();
-    
-    efectivoGlobalHoy = 0;
-    qrGlobalHoy = 0;
-    totalGlobalHoy = 0;
-
-    ventas.forEach(v => {
-        const esValido = (usuarioActivo.role === "admin" && v.fechaCorta === hoyStr) || 
-                         (usuarioActivo.role === "cajero" && v.usuario === usuarioActivo.user && v.fechaCorta === hoyStr);
-
-        if(esValido) {
-            totalGlobalHoy += v.total;
-            if(v.metodoPago === "EFECTIVO") efectivoGlobalHoy += v.total;
-            if(v.metodoPago === "QR") qrGlobalHoy += v.total;
-
-            const badgePago = v.metodoPago === "EFECTIVO" ? "badge-efectivo" : "badge-qr";
-            const badgeServicio = v.servicio === "MESA" ? "badge-mesa" : "badge-llevar";
-            const hora = v.fechaCompleta.split(" ")[1] || "";
-
-            let prodChipsHTML = "";
-            v.itemsTexto.split(", ").forEach(chip => {
-                prodChipsHTML += `<span class="cajero-table-badge-items">${chip}</span>`;
-            });
-
-            tbody.innerHTML += `
-                <tr style="background:#fff;">
-                    <td><strong>${hora}</strong></td>
-                    <td><span class="text-orange-600 font-bold">${v.usuario.toUpperCase()}</span></td>
-                    <td>${prodChipsHTML}</td>
-                    <td><span class="badge-service ${badgeServicio}">${v.servicio || 'MESA'}</span></td>
-                    <td><span class="badge-pago ${badgePago}">${v.metodoPago}</span></td>
-                    <td class="font-bold text-emerald-600 text-right">${v.total.toFixed(2)} Bs.</td>
-                </tr>
-            `;
-        }
-    });
-    if(lblTotal) lblTotal.innerText = `${totalGlobalHoy.toFixed(2)} Bs.`;
-}
-
-function ejecutarArqueoCaja() {
-    alert(`Arqueo Rápido:\nEfectivo: ${efectivoGlobalHoy.toFixed(2)} Bs.\nQR: ${qrGlobalHoy.toFixed(2)} Bs.\nTotal: ${totalGlobalHoy.toFixed(2)} Bs.`);
-}
-
-function calcularReportesYProductos() {
-    if(usuarioActivo.role !== "admin") return;
-
-    const container = document.getElementById("weeklyDaysContainer");
-    if(!container) return;
-    container.innerHTML = "";
-
-    const hoyStr = new Date().toLocaleDateString();
-    let totalHoy = 0, efecHoy = 0, qrHoy = 0;
-    let totalMes = 0, efecMes = 0, qrMes = 0;
-
-    const conteoPorDia = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 0: {} };
-    let importesPorDia = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 0: 0 };
-
-    ventas.forEach(v => {
-        totalMes += v.total;
-        if (v.metodoPago === "EFECTIVO") efecMes += v.total;
-        if (v.metodoPago === "QR") qrMes += v.total;
-
-        if (v.fechaCorta === hoyStr) {
-            totalHoy += v.total;
-            if (v.metodoPago === "EFECTIVO") efecHoy += v.total;
-            if (v.metodoPago === "QR") qrHoy += v.total;
-        }
-
-        importesPorDia[v.diaSemana] += v.total;
-
-        if (v.itemsArray && Array.isArray(v.itemsArray)) {
-            v.itemsArray.forEach(prodName => {
-                conteoPorDia[v.diaSemana][prodName] = (conteoPorDia[v.diaSemana][prodName] || 0) + 1;
-            });
-        }
-    });
-
-    document.getElementById("lblVentasDia").innerText = `${totalHoy.toFixed(2)} Bs.`;
-    document.getElementById("lblEfecHoy").innerText = efecHoy.toFixed(2);
-    document.getElementById("lblQrHoy").innerText = qrHoy.toFixed(2);
-    document.getElementById("lblVentasMes").innerText = `${totalMes.toFixed(2)} Bs.`;
-    document.getElementById("lblEfecMes").innerText = efecMes.toFixed(2);
-    document.getElementById("lblQrMes").innerText = qrMes.toFixed(2);
-
-    let maxVentaSemana = Math.max(...Object.values(importesPorDia), 1);
-
-    const dias = [
-        { id: 1, name: "Lunes" }, { id: 2, name: "Martes" }, { id: 3, name: "Miércoles" },
-        { id: 4, name: "Jueves" }, { id: 5, name: "Viernes" }, { id: 6, name: "Sábado" }, { id: 0, name: "Domingo" }
-    ];
-
-    dias.forEach(d => {
-        let montoDia = importesPorDia[d.id];
-        let porcentajeBarra = (montoDia / maxVentaSemana) * 100;
-
-        let chipsHTML = "";
-        for (const [prod, cant] of Object.entries(conteoPorDia[d.id])) {
-            chipsHTML += `<span class="perf-chip-item">${prod} (x${cant})</span>`;
-        }
-        if(!chipsHTML) chipsHTML = `<span class="text-xs text-slate-400 italic">Sin registros de ventas</span>`;
-
-        container.innerHTML += `
-            <div class="perf-table-row">
-                <div class="perf-day-col">${d.name}</div>
-                <div class="perf-bar-container">
-                    <div class="perf-bar-wrapper">
-                        <div class="perf-bar-fill" style="width: ${porcentajeBarra}%;"></div>
-                    </div>
-                    <div class="perf-details-col">
-                        ${chipsHTML}
-                    </div>
-                </div>
-                <div class="perf-total-col">${montoDia.toFixed(2)} Bs.</div>
-            </div>
-        `;
-    });
-}
-
-function renderizarHistorialVentas() {
-    const tbody = document.getElementById("tableHistoryBody");
-    if(!tbody || usuarioActivo.role !== "admin") return;
-    tbody.innerHTML = "";
-
-    ventas.forEach(v => {
-        const badgePago = v.metodoPago === "EFECTIVO" ? "badge-efectivo" : "badge-qr";
-        const badgeServicio = v.servicio === "LLEVAR" ? "badge-llevar" : "badge-mesa";
-        const horaVenta = v.fechaCompleta.split(" ")[1] || '';
-
-        tbody.innerHTML += `
-            <tr>
-                <td><strong>${horaVenta}</strong><br><small class="text-slate-400">${v.fechaCorta}</small></td>
-                <td><span class="font-semibold">${v.usuario}</span></td>
-                <td><div class="text-xs font-medium text-slate-600">${v.itemsTexto}</div></td>
-                <td><span class="badge-service ${badgeServicio}">${v.servicio || "MESA"}</span></td>
-                <td><span class="badge-pago ${badgePago}">${v.metodoPago}</span></td>
-                <td class="font-bold text-emerald-600 text-right">${v.total.toFixed(2)} Bs.</td>
-            </tr>
-        `;
-    });
-}
-
-function renderizarTablaInventario() {
-    const tbody = document.getElementById("tableInventoryBody");
-    if(!tbody || usuarioActivo.role !== "admin") return;
-    tbody.innerHTML = "";
-
-    productos.forEach((p) => {
-        const thumb = p.imagenUrl ? `<img src="${p.imagenUrl}" class="w-8 h-8 object-cover rounded">` : `<i class="fa-solid fa-utensils text-slate-400"></i>`;
-        tbody.innerHTML += `
-            <tr>
-                <td><div class="w-8 h-8 bg-slate-100 rounded flex items-center justify-center">${thumb}</div></td>
-                <td><strong>${p.nombre}</strong></td>
-                <td>${p.categoria}</td>
-                <td>${p.precio.toFixed(2)} Bs.</td>
-                <td><strong>${p.stock} u</strong></td>
-                <td style="text-align:center;"><button class="bg-slate-900 text-white text-xs px-2 py-1 rounded" onclick="cargarMasStock('${p.id}', '${p.nombre}')">+ Stock</button></td>
-            </tr>
-        `;
-    });
-}
-
-function cargarMasStock(idDoc, nombre) {
-    const cant = parseInt(prompt(`¿Cuántas unidades para "${nombre}"?`, "10"));
-    if (!isNaN(cant) && cant > 0) {
-        db.collection("productos").doc(idDoc).update({ stock: firebase.firestore.FieldValue.increment(cant) });
-    }
-}
-
-document.getElementById("productForm").addEventListener("submit", function(e) {
-    e.preventDefault();
-    if(usuarioActivo.role !== "admin") return;
-
-    const name = document.getElementById("prodName").value.trim();
-    const price = parseFloat(document.getElementById("prodPrice").value);
-    const stock = parseInt(document.getElementById("prodStock").value);
-    const category = document.getElementById("prodCategory").value;
-    const inputFile = document.getElementById("prodImgFile").files[0];
-
-    const guardarEnFirestore = (urlFoto) => {
-        db.collection("productos").add({
-            restauranteId: usuarioActivo.restauranteId || "pollo1",
-            nombre: name,
-            precio: price,
-            stock: stock,
-            categoria: category,
-            imagenUrl: urlFoto
-        }).then(() => {
-            alert("Subido con éxito.");
-            document.getElementById("productForm").reset();
-        });
-    };
-
-    if (inputFile) {
-        const refStorage = storage.ref().child("fotos_productos/" + Date.now() + "_" + inputFile.name);
-        refStorage.put(inputFile).then(snap => { snap.ref.getDownloadURL().then(url => guardarEnFirestore(url)); });
-    } else { guardarEnFirestore(""); }
-});
-
-document.getElementById("userForm").addEventListener("submit", function(e) {
-    e.preventDefault();
-    if(usuarioActivo.role !== "admin") return;
-
-    const u = document.getElementById("newUsername").value.trim().toLowerCase();
-    const p = document.getElementById("newPassword").value;
-    const r = document.getElementById("newUserRole").value;
-
-    db.collection("usuarios").add({
-        restauranteId: usuarioActivo.restauranteId || "pollo1",
-        user: u,
-        pass: p,
-        role: r
-    }).then(() => {
-        alert("Personal registrado.");
-        document.getElementById("userForm").reset();
-    });
-});
-
-document.getElementById("searchInp").addEventListener("input", (e) => {
-    const txt = e.target.value.toLowerCase();
-    document.querySelectorAll(".product-card").forEach(card => {
-        card.style.display = card.getAttribute("data-name").includes(txt) ? "block" : "none";
-    });
-});
-
-function configurarNavegacionTab() {
-    const botones = document.querySelectorAll(".menu-item:not(.logout)");
-    const secciones = document.querySelectorAll(".content-section");
-    botones.forEach(btn => {
-        btn.addEventListener("click", () => {
-            botones.forEach(b => b.classList.remove("active"));
-            secciones.forEach(s => s.classList.remove("active-section"));
-            btn.classList.add("active");
-            document.getElementById(btn.getAttribute("data-target")).classList.add("active-section");
-            document.getElementById("pageTitle").innerText = btn.innerText.trim();
-        });
-    });
-}
-
-document.getElementById("btnLimpiarBD").addEventListener("click", () => {
-    if(usuarioActivo.role !== "admin") return;
-    if(confirm("¿Deseas borrar el historial?")) {
-        db.collection("productos").where("restauranteId", "==", usuarioActivo.restauranteId).get().then(s => s.forEach(d => d.ref.delete()));
-        db.collection("ventas").where("restauranteId", "==", usuarioActivo.restauranteId).get().then(s => s.forEach(d => d.ref.delete()));
+        actualizarTicketDOM();
+    } catch (err) {
+        console.error("Error al procesar comanda:", err);
+        alert("Hubo un error al guardar la venta.");
+    } finally {
+        btnPay.disabled = false;
     }
 });
 
-document.getElementById("btnLogout").addEventListener("click", () => {
-    localStorage.removeItem("session_activa");
-    window.location.reload();
-});
+// ==========================================
+// RENDIMIENTO / HISTORIAL DIARIO (SCROLL LIBRE)
+// ==========================================
+function cargarFlujoHoy() {
+    const inicioHoy = new Date();
+    inicioHoy.setHours(0,0,0,0);
+
+    db.collection('sales')
+      .where('fecha', '>=', inicioHoy)
+      .orderBy('fecha', 'desc')
+      .onSnapshot(snapshot => {
+          const tbody = document.getElementById('tableCajeroPersonalBody');
+          tbody.innerHTML = '';
+
+          let miTotal = 0;
+          let globalDia = 0;
+          let efecHoy = 0, qrHoy = 0;
+
+          snapshot.forEach(doc => {
+              const v = doc.data();
+              globalDia += v.monto;
+              
+              if (v.cajero === currentUser.username) {
+                  miTotal += v.monto;
+              }
+              if (v.pago === 'Efectivo') efecHoy += v.monto;
+              if (v.pago === 'QR') qrHoy += v.monto;
+
+              // Formatear Hora
+              const hora = v.fecha ? v.fecha.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                  <td><span class="font-bold text-slate-600">${hora}</span></td>
+                  <td class="text-xs">${v.cajero}</td>
+                  <td class="max-w-[120px] truncate text-slate-700 font-medium">${v.items}</td>
+                  <td><span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 font-bold">${v.servicio}</span></td>
+                  <td><span class="px-2 py-0.5 rounded text-[10px] ${v.pago === 'QR' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'} font-black">${v.pago}</span></td>
+                  <td style="text-align:right;" class="font-bold">${v.monto.toFixed(2)} Bs.</td>
+              `;
+              tbody.appendChild(tr);
+          });
+
+          // Actualizar etiquetas en la interfaz de reportes
+          document.getElementById('lblMiTotalHoy').textContent = `${miTotal.toFixed(2)} Bs.`;
+          document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
+          document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
+          document.getElementById('lblQrHoy').textContent = `${qrHoy.toFixed(2)} Bs.`;
+      });
+}
