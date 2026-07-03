@@ -103,13 +103,23 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Salir del sistema
-document.getElementById('btnLogout').addEventListener('click', () => {
+// Función centralizada para Cerrar Sesión
+function cerrarSesionSistema() {
     currentUser = null;
+    carrito = [];
+    actualizarTicketDOM();
     loginOverlay.style.display = 'flex';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
-});
+}
+
+// Conectar botones de salida (tanto el de PC como el de celular)
+document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
+
+const btnMobileLogout = document.getElementById('btnMobileLogout');
+if (btnMobileLogout) {
+    btnMobileLogout.addEventListener('click', cerrarSesionSistema);
+}
 
 // ==========================================
 // RENDERIZADO DE PRODUCTOS (CAJA POS)
@@ -135,7 +145,6 @@ function renderizarTarjetaProducto(prod) {
     const card = document.createElement('div');
     card.className = 'product-card';
     
-    // Validar imagen o poner icono por defecto
     const imgContent = prod.imageUrl 
         ? `<img src="${prod.imageUrl}" alt="${prod.name}">` 
         : `<i class="fa-solid fa-utensils text-slate-400"></i>`;
@@ -147,7 +156,8 @@ function renderizarTarjetaProducto(prod) {
             <h4>${prod.name}</h4>
             <div class="flex justify-between items-center mt-1">
                 <span class="text-xs font-black text-slate-700">${parseFloat(prod.price).toFixed(2)} Bs.</span>
-                <button class="btn-add-fast" onclick="agregarAlCarrito('${prod.id}')">+</button>
+                <!-- BOTÓN + LLAMATIVO OPTIMIZADO CON ACCIÓN DIRECTA -->
+                <button class="btn-add-fast" onclick="agregarAlCarrito(event, '${prod.id}')">+</button>
             </div>
         </div>
     `;
@@ -168,7 +178,13 @@ searchInp.addEventListener('input', () => {
 // ==========================================
 // GESTIÓN DEL CARRITO / TICKET DE VENTA
 // ==========================================
-window.agregarAlCarrito = function(id) {
+window.agregarAlCarrito = function(event, id) {
+    // Esto evita que el click se confunda con la tarjeta en pantallas táctiles
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod) return;
 
@@ -208,6 +224,7 @@ function actualizarTicketDOM() {
         row.innerHTML = `
             <div class="flex flex-col">
                 <span class="font-bold text-slate-800 text-xs">${item.name}</span>
+                <!-- CANTIDAD EN ROJO RESALTADA -->
                 <span class="item-qty text-[11px]">Cantidad: x${item.cantidad}</span>
             </div>
             <div class="flex items-center gap-3">
@@ -232,7 +249,7 @@ document.getElementById('btnLimpiarOrden').addEventListener('click', () => {
     actualizarTicketDOM();
 });
 
-// Botones de opciones (Mesa/Llevar - Efectivo/QR)
+// Botones de opciones
 let servicioSeleccionado = "Mesa";
 let pagoSeleccionado = "Efectivo";
 
@@ -276,10 +293,8 @@ btnPay.addEventListener('click', async () => {
     };
 
     try {
-        // 1. Guardar la venta en Firebase
         await db.collection('sales').add(nuevaVenta);
 
-        // 2. Descontar el stock de cada producto vendido
         for (const item of carrito) {
             const prodRef = db.collection('products').doc(item.id);
             await db.runTransaction(async (transaction) => {
@@ -290,11 +305,9 @@ btnPay.addEventListener('click', async () => {
             });
         }
 
-        // Mostrar Toast de éxito animado
         toastSuccess.classList.add('show');
         setTimeout(() => { toastSuccess.classList.remove('show'); }, 3500);
 
-        // Limpiar carrito
         carrito = [];
         actualizarTicketDOM();
     } catch (err) {
@@ -317,6 +330,7 @@ function cargarFlujoHoy() {
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
           const tbody = document.getElementById('tableCajeroPersonalBody');
+          if(!tbody) return;
           tbody.innerHTML = '';
 
           let miTotal = 0;
@@ -333,7 +347,6 @@ function cargarFlujoHoy() {
               if (v.pago === 'Efectivo') efecHoy += v.monto;
               if (v.pago === 'QR') qrHoy += v.monto;
 
-              // Formatear Hora
               const hora = v.fecha ? v.fecha.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
 
               const tr = document.createElement('tr');
@@ -348,7 +361,6 @@ function cargarFlujoHoy() {
               tbody.appendChild(tr);
           });
 
-          // Actualizar etiquetas en la interfaz de reportes
           document.getElementById('lblMiTotalHoy').textContent = `${miTotal.toFixed(2)} Bs.`;
           document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
           document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
