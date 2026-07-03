@@ -103,17 +103,16 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Función centralizada para Cerrar Sesión
+// Función corregida sin bloqueos para Cerrar Sesión
 function cerrarSesionSistema() {
     currentUser = null;
     carrito = [];
-    actualizarTicketDOM();
     loginOverlay.style.display = 'flex';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
 }
 
-// Conectar botones de salida (tanto el de PC como el de celular)
+// Conectar botones de salida (tanto PC como el nuevo botón del celular)
 document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
 
 const btnMobileLogout = document.getElementById('btnMobileLogout');
@@ -156,7 +155,6 @@ function renderizarTarjetaProducto(prod) {
             <h4>${prod.name}</h4>
             <div class="flex justify-between items-center mt-1">
                 <span class="text-xs font-black text-slate-700">${parseFloat(prod.price).toFixed(2)} Bs.</span>
-                <!-- BOTÓN + LLAMATIVO OPTIMIZADO CON ACCIÓN DIRECTA -->
                 <button class="btn-add-fast" onclick="agregarAlCarrito(event, '${prod.id}')">+</button>
             </div>
         </div>
@@ -179,7 +177,6 @@ searchInp.addEventListener('input', () => {
 // GESTIÓN DEL CARRITO / TICKET DE VENTA
 // ==========================================
 window.agregarAlCarrito = function(event, id) {
-    // Esto evita que el click se confunda con la tarjeta en pantallas táctiles
     if (event) {
         event.stopPropagation();
         event.preventDefault();
@@ -212,6 +209,7 @@ window.agregarAlCarrito = function(event, id) {
 };
 
 function actualizarTicketDOM() {
+    if (!ticketList) return;
     ticketList.innerHTML = '';
     let total = 0;
 
@@ -224,7 +222,6 @@ function actualizarTicketDOM() {
         row.innerHTML = `
             <div class="flex flex-col">
                 <span class="font-bold text-slate-800 text-xs">${item.name}</span>
-                <!-- CANTIDAD EN ROJO RESALTADA -->
                 <span class="item-qty text-[11px]">Cantidad: x${item.cantidad}</span>
             </div>
             <div class="flex items-center gap-3">
