@@ -5,13 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roberto POS</title>
     
-    <!-- Tailwind CSS v4 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     
-    <!-- Iconos de FontAwesome v6.4.0 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDK v8 compatible -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
@@ -65,7 +62,7 @@
             left: 0;
         }
 
-        /* AREA DE CONTENIDO LIBRE (PERMITE SCROLL TOTAL DE LA PÁGINA) */
+        /* AREA DE CONTENIDO CON SCROLL LIBRE */
         .content-area {
             flex-grow: 1;
             padding: 16px;
@@ -75,10 +72,9 @@
             box-sizing: border-box;
             background-color: #f8fafc;
             width: 100%;
-            overflow-y: auto; /* Scroll general activado para que baje sin problemas */
+            overflow-y: auto;
         }
 
-        /* DISEÑO DE LA CAJA POS */
         .pos-layout {
             display: flex;
             flex-direction: column;
@@ -103,7 +99,7 @@
             align-content: start;
         }
 
-        /* PRODUCT CARD CON BOTÓN + MEJORADO */
+        /* TARJETA DE PRODUCTO */
         .product-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -116,25 +112,29 @@
             height: 140px;
         }
         
-        /* El símbolo + convertido en un botón de acción llamativo */
+        /* BOTÓN MAS OPTIMIZADO CON Z-INDEX PARA CELULARES */
         .btn-add-fast {
             background-color: #f97316;
             color: white;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 900;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-left: auto;
             margin-top: 4px;
-            transition: transform 0.1s ease;
-            box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3);
+            border: none;
+            cursor: pointer;
+            position: relative;
+            z-index: 10; /* Asegura que el toque en celular vaya directo al botón */
+            box-shadow: 0 2px 6px rgba(249, 115, 22, 0.4);
         }
+        
         .btn-add-fast:active {
-            transform: scale(0.9);
+            transform: scale(0.85);
         }
 
         .prod-stock {
@@ -175,7 +175,7 @@
             border-bottom: 1px solid #e2e8f0;
         }
 
-        /* TEXTO DE CANTIDAD EN ROJO RESALTADO */
+        /* CANTIDAD EN ROJO */
         .ticket-item .item-qty {
             color: #ef4444 !important;
             font-weight: bold !important;
@@ -217,6 +217,9 @@
             }
             #btnToggleSidebar {
                 display: none !important;
+            }
+            #btnMobileLogout {
+                display: none !important; /* Ocultar botón de salida móvil en PC */
             }
             .pos-layout {
                 flex-direction: row;
@@ -266,7 +269,6 @@
         </div>
     </div>
 
-    <!-- Login -->
     <div id="loginOverlay">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4">
             <h2 class="text-xl font-black text-slate-800 text-center mb-2">Iniciar Sesión</h2>
@@ -286,7 +288,6 @@
 
     <div class="main-container">
         
-        <!-- Sidebar -->
         <aside id="sidebar" class="sidebar">
             <div>
                 <div class="mb-6 px-2 flex justify-between items-center">
@@ -320,7 +321,6 @@
             </button>
         </aside>
 
-        <!-- Contenido principal -->
         <main class="content-area">
             
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
@@ -328,9 +328,11 @@
                     <button id="btnToggleSidebar" class="text-slate-800 text-xl md:hidden p-1 bg-white border border-slate-200 rounded-lg shadow-sm w-9 h-9 flex items-center justify-center"><i class="fa-solid fa-bars"></i></button>
                     <h2 id="pageTitle" class="text-lg md:text-xl font-black text-slate-800">Caja POS</h2>
                 </div>
+                <button id="btnMobileLogout" class="md:hidden flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-xl font-bold text-xs border border-red-100">
+                    <i class="fa-solid fa-right-from-bracket"></i> Salir
+                </button>
             </div>
 
-            <!-- Módulo: Caja POS -->
             <div id="sectionCaja" class="content-section active-section">
                 <div class="pos-layout">
                     <section class="products-section">
@@ -378,7 +380,6 @@
                 </div>
             </div>
 
-            <!-- Módulo: Rendimiento con Scroll Ilimitado -->
             <div id="sectionReportes" class="content-section flex-col gap-4">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
@@ -413,7 +414,6 @@
                 </div>
             </div>
 
-            <!-- Módulo: Inventario -->
             <div id="sectionInventario" class="content-section flex-col gap-4">
                 <div class="bg-white p-4 rounded-xl shadow-sm">
                     <form id="productForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 items-end">
@@ -440,7 +440,6 @@
                 </div>
             </div>
 
-            <!-- Módulo: Personal -->
             <div id="sectionPersonal" class="content-section flex-col gap-4">
                 <div class="bg-white p-5 rounded-xl shadow-sm w-full max-w-sm">
                     <h3 class="font-bold text-base text-slate-800 mb-3">Registrar Personal</h3>
@@ -468,13 +467,13 @@
         </main>
     </div>
 
-    <!-- Menú hamburguesa lateral -->
     <script>
         const btnToggle = document.getElementById('btnToggleSidebar');
         const btnClose = document.getElementById('btnCloseSidebar');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
         const menuButtons = document.querySelectorAll('.menu-item');
+        const btnMobileLogout = document.getElementById('btnMobileLogout');
 
         function toggleMenu() {
             sidebar.classList.toggle('open');
@@ -493,6 +492,13 @@
                 }
             });
         });
+
+        // Evento para que el botón de Cerrar Sesión del Celular active la salida
+        if(btnMobileLogout) {
+            btnMobileLogout.addEventListener('click', () => {
+                document.getElementById('btnLogout').click();
+            });
+        }
     </script>
 
     <script src="script.js"></script>
