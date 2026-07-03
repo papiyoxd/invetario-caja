@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roberto POS</title>
+    
+    <!-- Tailwind CSS v4 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <!-- Iconos de FontAwesome v6.4.0 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Firebase Core e hilos de servicio (SDK v8 compatible) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
@@ -24,7 +29,7 @@
         .content-section {
             display: none !important;
         }
-        /* Cambio clave: Permitimos scroll general en las secciones si el contenido rebasa */
+        
         .active-section {
             display: flex !important;
             flex-direction: column;
@@ -118,7 +123,7 @@
         .prod-img img { width: 45px; height: 45px; object-fit: cover; margin: 0 auto; border-radius: 8px; }
         .prod-details h4 { font-weight: 700; color: #1e293b; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* SECCIÓN FACTURACIÓN CORREGIDA */
+        /* SECCIÓN FACTURACIÓN */
         .billing-section {
             width: 380px;
             background: #ffffff;
@@ -127,15 +132,14 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
             display: flex;
             flex-direction: column;
-            height: 100%; /* Ocupa todo el alto disponible */
+            height: 100%; 
             flex-shrink: 0;
         }
 
-        /* Lista de productos agregados con scroll asegurado */
         .ticket-items {
             flex-grow: 1;
             overflow-y: auto; 
-            min-height: 200px; /* Evita que colapse a cero */
+            min-height: 200px; 
             margin-top: 12px;
             margin-bottom: 12px;
             border: 1px dashed #cbd5e1;
@@ -178,12 +182,12 @@
             display: inline-block; margin-bottom: 2px;
         }
 
-        /* REDISEÑO COMPLETO PARA EL RENDIMIENTO DIARIO (LARGO Y CON DESLIZAMIENTO) */
+        /* RENDIMIENTO DIARIO */
         .report-grid-layout {
             display: flex;
             flex-direction: column;
             gap: 20px;
-            padding-bottom: 60px; /* Espacio extra abajo para deslizar cómodamente */
+            padding-bottom: 60px; 
         }
 
         .perf-table-row { 
@@ -235,6 +239,7 @@
 </head>
 <body>
 
+    <!-- Notificaciones flotantes -->
     <div id="toastSuccess">
         <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-lg">
             <i class="fa-solid fa-circle-check"></i>
@@ -245,6 +250,7 @@
         </div>
     </div>
 
+    <!-- Capa de Autenticación -->
     <div id="loginOverlay">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
             <h2 class="text-2xl font-black text-slate-800 text-center mb-2">Iniciar Sesión</h2>
@@ -262,8 +268,10 @@
         </div>
     </div>
 
+    <!-- Contenedor Principal de la App -->
     <div class="main-container">
         
+        <!-- Barra Lateral Dinámica -->
         <aside id="sidebar" class="sidebar">
             <div>
                 <div class="mb-8 px-2 flex justify-between items-center">
@@ -296,11 +304,13 @@
             </button>
         </aside>
 
+        <!-- Área de Trabajo Módulos -->
         <main class="content-area">
             <div class="flex justify-between items-center mb-4">
                 <h2 id="pageTitle" class="text-xl font-black text-slate-800">Caja POS</h2>
             </div>
 
+            <!-- Módulo 1: Caja POS -->
             <div id="sectionCaja" class="content-section active-section">
                 <div class="pos-layout">
                     <section class="products-section">
@@ -349,8 +359,8 @@
                 </div>
             </div>
 
+            <!-- Módulo 2: Rendimiento y Reportes -->
             <div id="sectionReportes" class="content-section flex-col gap-6 flex-grow report-grid-layout">
-                
                 <div class="grid grid-cols-3 gap-4 flex-shrink-0">
                     <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-orange-500">
                         <h4 class="text-xs font-bold text-slate-400 uppercase">Mis Ventas (Hoy)</h4>
@@ -381,7 +391,7 @@
                                 <tr>
                                     <th>HORA</th><th>CAJERO</th><th>PRODUCTOS DESPACHADOS</th><th>SERVICIO</th><th>MEDIO PAGO</th><th style="text-align:right;">MONTO</th>
                                 </tr>
-                            </thead>
+                            </table>
                             <tbody id="tableCajeroPersonalBody"></tbody>
                         </table>
                     </div>
@@ -391,8 +401,7 @@
                     <h3 class="font-bold text-xs text-slate-700 mb-4 uppercase tracking-wider pb-2 border-b border-slate-100">
                         <i class="fa-solid fa-calendar-days text-orange-600 mr-1"></i> Resumen de Ventas y Platos por Día
                     </h3>
-                    <div id="weeklyDaysContainer" class="flex flex-col gap-1">
-                        </div>
+                    <div id="weeklyDaysContainer" class="flex flex-col gap-1"></div>
                 </div>
                 
                 <div class="bg-white rounded-xl shadow-sm flex flex-col p-5">
@@ -413,9 +422,9 @@
                         </table>
                     </div>
                 </div>
-
             </div>
 
+            <!-- Módulo 3: Inventario -->
             <div id="sectionInventario" class="content-section flex-col gap-4 flex-grow overflow-hidden">
                 <div class="bg-white p-4 rounded-xl shadow-sm flex gap-4 items-end flex-shrink-0">
                     <form id="productForm" class="grid grid-cols-5 gap-3 w-full items-end">
@@ -442,6 +451,7 @@
                 </div>
             </div>
 
+            <!-- Módulo 4: Control de Personal -->
             <div id="sectionPersonal" class="content-section flex-col gap-4 flex-grow">
                 <div class="bg-white p-6 rounded-xl shadow-sm w-full max-w-md">
                     <h3 class="font-bold text-lg text-slate-800 mb-4">Registrar Nuevo Usuario</h3>
@@ -469,6 +479,7 @@
         </main>
     </div>
 
+    <!-- Hilo de conexión con Firebase SDK Local y Controladores -->
     <script src="script.js"></script>
 </body>
 </html>
