@@ -64,19 +64,15 @@ menuButtons.forEach(btn => {
         const target = btn.getAttribute('data-target');
         if (!target) return;
 
-        // Cambiar botón activo del menú
         menuButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // Cambiar sección visible
         sections.forEach(sec => sec.classList.remove('active-section'));
         const targetSec = document.getElementById(target);
         if (targetSec) targetSec.classList.add('active-section');
 
-        // Actualizar título de la barra superior
         pageTitle.textContent = btn.textContent.trim();
 
-        // Cerrar menú si es celular
         if(window.innerWidth < 768) {
             sidebar.classList.remove('open');
             overlay.style.display = 'none';
@@ -85,7 +81,7 @@ menuButtons.forEach(btn => {
 });
 
 // ==========================================
-// INICIO DE SESIÓN COMPACTO
+// INICIO DE SESIÓN CORREGIDO SEGÚN TU FIRESTORE ("user" y "pass")
 // ==========================================
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -93,7 +89,8 @@ loginForm.addEventListener('submit', async (e) => {
     const passInp = document.getElementById('password').value;
 
     try {
-        const snapshot = await db.collection('users').where('username', '==', userInp).get();
+        // Buscamos usando tu campo real 'user' de Firebase
+        const snapshot = await db.collection('users').where('user', '==', userInp).get();
         if (snapshot.empty) {
             alert('Usuario no encontrado');
             return;
@@ -102,13 +99,13 @@ loginForm.addEventListener('submit', async (e) => {
         let userData = null;
         snapshot.forEach(doc => { userData = doc.data(); });
 
-        if (userData.password === passInp) {
+        // Comparamos usando tu campo real 'pass' de Firebase
+        if (userData.pass === passInp) {
             currentUser = userData;
-            document.getElementById('userProfileName').textContent = currentUser.username;
+            document.getElementById('userProfileName').textContent = currentUser.user;
             document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
-            document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
+            document.getElementById('userAvatar').textContent = currentUser.user.charAt(0).toUpperCase();
 
-            // Restricción de rol
             if (currentUser.role !== 'admin') {
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             } else {
@@ -135,7 +132,6 @@ function cerrarSesionSistema() {
     document.getElementById('password').value = '';
 }
 
-// Conectar botones de salida
 if (document.getElementById('btnLogout')) {
     document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
 }
@@ -185,7 +181,6 @@ function renderizarTarjetaProducto(prod) {
     productsGrid.appendChild(card);
 }
 
-// Buscador en tiempo real
 searchInp.addEventListener('input', () => {
     const query = searchInp.value.toLowerCase();
     productsGrid.innerHTML = '';
@@ -269,7 +264,6 @@ document.getElementById('btnLimpiarOrden').addEventListener('click', () => {
     actualizarTicketDOM();
 });
 
-// Botones de opciones
 let servicioSeleccionado = "Mesa";
 let pagoSeleccionado = "Efectivo";
 
@@ -305,7 +299,7 @@ btnPay.addEventListener('click', async () => {
 
     const nuevaVenta = {
         fecha: firebase.firestore.Timestamp.now(),
-        cajero: currentUser.username,
+        cajero: currentUser.user, // Cambiado según base de datos
         items: itemsResumen,
         servicio: servicioSeleccionado,
         pago: pagoSeleccionado,
@@ -361,7 +355,7 @@ function cargarFlujoHoy() {
               const v = doc.data();
               globalDia += v.monto;
               
-              if (v.cajero === currentUser.username) {
+              if (v.cajero === currentUser.user) { // Cambiado según base de datos
                   miTotal += v.monto;
               }
               if (v.pago === 'Efectivo') efecHoy += v.monto;
