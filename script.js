@@ -39,9 +39,26 @@ const menuButtons = document.querySelectorAll('.menu-item');
 const sections = document.querySelectorAll('.content-section');
 const pageTitle = document.getElementById('pageTitle');
 
+// Elementos de Menú Hamburguesa Celular
+const btnToggle = document.getElementById('btnToggleSidebar');
+const btnClose = document.getElementById('btnCloseSidebar');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('sidebarOverlay');
+const btnMobileLogout = document.getElementById('btnMobileLogout');
+
 // ==========================================
 // CONTROL DE MÓDULOS / NAVEGACIÓN
 // ==========================================
+function toggleMenu() {
+    if (!sidebar || !overlay) return;
+    sidebar.classList.toggle('open');
+    overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+}
+
+if(btnToggle) btnToggle.addEventListener('click', toggleMenu);
+if(btnClose) btnClose.addEventListener('click', toggleMenu);
+if(overlay) overlay.addEventListener('click', toggleMenu);
+
 menuButtons.forEach(btn => {
     btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-target');
@@ -58,6 +75,12 @@ menuButtons.forEach(btn => {
 
         // Actualizar título de la barra superior
         pageTitle.textContent = btn.textContent.trim();
+
+        // Cerrar menú si es celular
+        if(window.innerWidth < 768) {
+            sidebar.classList.remove('open');
+            overlay.style.display = 'none';
+        }
     });
 });
 
@@ -103,7 +126,7 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Función corregida sin bloqueos para Cerrar Sesión
+// Función limpia para Cerrar Sesión
 function cerrarSesionSistema() {
     currentUser = null;
     carrito = [];
@@ -112,10 +135,10 @@ function cerrarSesionSistema() {
     document.getElementById('password').value = '';
 }
 
-// Conectar botones de salida (tanto PC como el nuevo botón del celular)
-document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
-
-const btnMobileLogout = document.getElementById('btnMobileLogout');
+// Conectar botones de salida
+if (document.getElementById('btnLogout')) {
+    document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
+}
 if (btnMobileLogout) {
     btnMobileLogout.addEventListener('click', cerrarSesionSistema);
 }
@@ -316,7 +339,7 @@ btnPay.addEventListener('click', async () => {
 });
 
 // ==========================================
-// RENDIMIENTO / HISTORIAL DIARIO (SCROLL LIBRE)
+// RENDIMIENTO / HISTORIAL DIARIO
 // ==========================================
 function cargarFlujoHoy() {
     const inicioHoy = new Date();
