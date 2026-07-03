@@ -81,7 +81,7 @@ menuButtons.forEach(btn => {
 });
 
 // ==========================================
-// INICIO DE SESIÓN CORREGIDO SEGÚN TU FIRESTORE ("user" y "pass")
+// INICIO DE SESIÓN ADAPTADO A TU BASE DE DATOS
 // ==========================================
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -89,8 +89,8 @@ loginForm.addEventListener('submit', async (e) => {
     const passInp = document.getElementById('password').value;
 
     try {
-        // Buscamos usando tu campo real 'user' de Firebase
-        const snapshot = await db.collection('users').where('user', '==', userInp).get();
+        // Busca exactamente en la columna 'user' de tu Firestore
+        const snapshot = await db.collection('usuarios').where('user', '==', userInp).get();
         if (snapshot.empty) {
             alert('Usuario no encontrado');
             return;
@@ -99,7 +99,7 @@ loginForm.addEventListener('submit', async (e) => {
         let userData = null;
         snapshot.forEach(doc => { userData = doc.data(); });
 
-        // Comparamos usando tu campo real 'pass' de Firebase
+        // Compara con la columna 'pass' de tu Firestore
         if (userData.pass === passInp) {
             currentUser = userData;
             document.getElementById('userProfileName').textContent = currentUser.user;
@@ -144,7 +144,7 @@ if (btnMobileLogout) {
 // ==========================================
 async function cargarProductos() {
     try {
-        db.collection('products').onSnapshot(snapshot => {
+        db.collection('productos').onSnapshot(snapshot => {
             productosGlobales = [];
             productsGrid.innerHTML = '';
             
@@ -299,7 +299,7 @@ btnPay.addEventListener('click', async () => {
 
     const nuevaVenta = {
         fecha: firebase.firestore.Timestamp.now(),
-        cajero: currentUser.user, // Cambiado según base de datos
+        cajero: currentUser.user,
         items: itemsResumen,
         servicio: servicioSeleccionado,
         pago: pagoSeleccionado,
@@ -307,10 +307,10 @@ btnPay.addEventListener('click', async () => {
     };
 
     try {
-        await db.collection('sales').add(nuevaVenta);
+        await db.collection('ventas').add(nuevaVenta);
 
         for (const item of carrito) {
-            const prodRef = db.collection('products').doc(item.id);
+            const prodRef = db.collection('productos').doc(item.id);
             await db.runTransaction(async (transaction) => {
                 const sfDoc = await transaction.get(prodRef);
                 if (!sfDoc.exists) return;
@@ -339,7 +339,7 @@ function cargarFlujoHoy() {
     const inicioHoy = new Date();
     inicioHoy.setHours(0,0,0,0);
 
-    db.collection('sales')
+    db.collection('ventas')
       .where('fecha', '>=', inicioHoy)
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
@@ -355,7 +355,7 @@ function cargarFlujoHoy() {
               const v = doc.data();
               globalDia += v.monto;
               
-              if (v.cajero === currentUser.user) { // Cambiado según base de datos
+              if (v.cajero === currentUser.user) {
                   miTotal += v.monto;
               }
               if (v.pago === 'Efectivo') efecHoy += v.monto;
