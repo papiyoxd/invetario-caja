@@ -467,7 +467,7 @@ function calcularVuelto() {
 inpMontoPago.addEventListener('input', calcularVuelto);
 
 // ==========================================
-// ENVIAR / PROCESAR COMANDA (CON CONTROL QR)
+// ENVIAR / PROCESAR COMANDA (CON TU QR BCP REAL)
 // ==========================================
 btnPay.addEventListener('click', () => {
     if (carrito.length === 0) return;
@@ -475,9 +475,8 @@ btnPay.addEventListener('click', () => {
     const total = parseFloat(txtTotal.textContent);
 
     if (pagoSeleccionado === "QR") {
-        // Generar QR Dinámico usando API de QR gratuita (QR Server)
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=Cobro_Roberto_Monto_${total.toFixed(2)}_Bs`;
-        imgCodigoQR.src = qrUrl;
+        // Cargamos tu imagen real que guardaste en el proyecto
+        imgCodigoQR.src = "qr-bcp.jpeg"; 
         lblMontoTotalQR.textContent = `${total.toFixed(2)} Bs.`;
         
         modalQR.classList.remove('hidden');
