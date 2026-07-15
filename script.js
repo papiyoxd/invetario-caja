@@ -116,6 +116,7 @@ loginForm.addEventListener('submit', async (e) => {
             loginOverlay.style.display = 'none';
             cargarProductos();
             cargarFlujoHoy();
+            inicializarFormularioProductos(); // Inicializar el gestor de productos nuevos
         } else {
             alert('Contraseña incorrecta');
         }
@@ -191,6 +192,67 @@ searchInp.addEventListener('input', () => {
         }
     });
 });
+
+// ==========================================
+// SECCIÓN ADMINISTRADOR: AGREGAR NUEVOS PRODUCTOS
+// ==========================================
+function inicializarFormularioProductos() {
+    const productForm = document.getElementById('productForm');
+    if (!productForm) return;
+
+    // Removemos duplicados de eventos por si acaso
+    productForm.replaceWith(productForm.cloneNode(true));
+    const cleanProductForm = document.getElementById('productForm');
+
+    cleanProductForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); // <-- ESTO EVITA QUE LA PÁGINA SE RECARGUE Y SE CIERRE LA SESIÓN
+
+        const btnSubmit = cleanProductForm.querySelector('button[type="submit"]');
+        if (btnSubmit) btnSubmit.disabled = true;
+
+        const name = document.getElementById('prodName').value.trim();
+        const price = parseFloat(document.getElementById('prodPrice').value);
+        const stock = parseInt(document.getElementById('prodStock').value);
+        const category = document.getElementById('prodCategory').value;
+        const fileInput = document.getElementById('prodImage');
+
+        if (!name || isNaN(price) || isNaN(stock)) {
+            alert("Por favor completa los campos correctamente.");
+            if (btnSubmit) btnSubmit.disabled = false;
+            return;
+        }
+
+        try {
+            let imageUrl = "";
+
+            // Subir imagen a Firebase Storage si seleccionaron una
+            if (fileInput && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const storageRef = storage.ref(`productos/${Date.now()}_${file.name}`);
+                const uploadTask = await storageRef.put(file);
+                imageUrl = await uploadTask.ref.getDownloadURL();
+            }
+
+            // Guardar el nuevo producto en Firestore
+            await db.collection('productos').add({
+                name: name,
+                price: price,
+                stock: stock,
+                category: category,
+                imageUrl: imageUrl,
+                fechaCreacion: firebase.firestore.Timestamp.now()
+            });
+
+            alert("¡Producto agregado con éxito!");
+            cleanProductForm.reset();
+        } catch (error) {
+            console.error("Error al guardar producto:", error);
+            alert("Ocurrió un error al guardar el producto.");
+        } finally {
+            if (btnSubmit) btnSubmit.disabled = false;
+        }
+    });
+}
 
 // ==========================================
 // GESTIÓN DEL CARRITO / TICKET DE VENTA
