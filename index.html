@@ -24,19 +24,27 @@
             transform: translateY(-4px);
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
+        /* Alertas visuales de stock bajo */
         .prod-stock {
             position: absolute;
             top: 8px;
             right: 8px;
-            background: rgba(15, 23, 42, 0.85);
-            color: white;
             font-size: 10px;
             font-weight: bold;
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: 20px;
+            z-index: 10;
         }
+        .stock-alto { background: rgba(15, 23, 42, 0.85); color: white; }
+        .stock-bajo { background: #ef4444; color: white; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
         .prod-img {
-            height: 120px;
+            height: 110px;
             background: #f1f5f9;
             display: flex;
             align-items: center;
@@ -48,7 +56,7 @@
             height: 100%;
             object-fit: cover;
         }
-        .prod-details { padding: 10px; }
+        .prod-details { padding: 8px; }
         .prod-details h4 {
             font-size: 13px;
             font-weight: 700;
@@ -74,7 +82,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 6px 0;
             border-bottom: 1px dashed #cbd5e1;
         }
         .btn-option {
@@ -82,9 +90,10 @@
             color: #475569;
             padding: 6px 12px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             transition: all 0.2s;
+            text-align: center;
         }
         .btn-option.active {
             background: #0f172a;
@@ -93,7 +102,7 @@
         #sidebar {
             transition: transform 0.3s ease-in-out;
         }
-        @media (max-width: 767px) {
+        @media (max-width: 1023px) {
             #sidebar {
                 transform: translateX(-100%);
                 position: fixed;
@@ -155,13 +164,13 @@
         </div>
     </div>
 
-    <!-- CONTENEDOR PRINCIPAL DEL SISTEMA -->
+    <!-- CONTENEDOR PRINCIPAL -->
     <div class="flex h-screen overflow-hidden">
 
         <!-- OVERLAY DE SEGURIDAD (CELULARES) -->
         <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-40 hidden"></div>
 
-        <!-- BARRA LATERAL (SIDEBAR) -->
+        <!-- BARRA LATERAL -->
         <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between h-full border-r border-slate-800 shrink-0">
             <div>
                 <div class="p-6 border-b border-slate-800 flex items-center justify-between">
@@ -171,7 +180,7 @@
                         </div>
                         <span class="font-black text-white text-base tracking-wide">MI NEGOCIO</span>
                     </div>
-                    <button id="btnCloseSidebar" class="md:hidden text-slate-400 hover:text-white">
+                    <button id="btnCloseSidebar" class="lg:hidden text-slate-400 hover:text-white">
                         <i class="fa-solid fa-xmark text-xl"></i>
                     </button>
                 </div>
@@ -211,13 +220,12 @@
 
             <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
                 <div class="flex items-center gap-4">
-                    <button id="btnToggleSidebar" class="md:hidden text-slate-600 hover:text-slate-900">
+                    <button id="btnToggleSidebar" class="lg:hidden text-slate-600 hover:text-slate-900">
                         <i class="fa-solid fa-bars text-xl"></i>
                     </button>
                     <h2 id="pageTitle" class="text-xl font-black text-slate-800">Punto de Venta</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-xs text-slate-400 font-medium">Estado:</span>
                     <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase Online
                     </span>
@@ -230,7 +238,9 @@
                 <section id="secPuntoVenta" class="content-section active-section">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
                         
-                        <div class="lg:col-span-8 flex flex-col gap-4">
+                        <!-- LADO IZQUIERDO: PRODUCTOS Y FILTROS -->
+                        <div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+                            <!-- BUSCADOR -->
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -238,12 +248,23 @@
                                 <input type="text" id="searchInp" class="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm" placeholder="Buscar producto por nombre...">
                             </div>
 
-                            <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            <!-- FILTROS RÁPIDOS POR CATEGORÍA -->
+                            <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                <button onclick="filtrarCategoria('Todos')" class="cat-filter-btn px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">Todos</button>
+                                <button onclick="filtrarCategoria('Bebidas')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Bebidas</button>
+                                <button onclick="filtrarCategoria('Platos')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Platos</button>
+                                <button onclick="filtrarCategoria('Postres')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Postres</button>
+                                <button onclick="filtrarCategoria('Otros')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Otros</button>
+                            </div>
+
+                            <!-- GRILLA DE PRODUCTOS RESPONSIVE -->
+                            <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                                 <!-- Productos dinámicos -->
                             </div>
                         </div>
 
-                        <div class="lg:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col max-h-[600px]">
+                        <!-- LADO DERECHO: TICKET / CAJA -->
+                        <div class="lg:col-span-5 xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-200">
                                 <h3 class="font-black text-slate-800 flex items-center gap-2">
                                     <i class="fa-solid fa-file-invoice text-emerald-500"></i> Orden Actual
@@ -251,33 +272,47 @@
                                 <button id="btnLimpiarOrden" class="text-xs text-red-500 hover:underline font-bold">Limpiar todo</button>
                             </div>
 
-                            <div id="ticketList" class="flex-1 overflow-y-auto min-h-[200px] max-h-[300px] my-3 pr-1">
+                            <div id="ticketList" class="flex-1 overflow-y-auto min-h-[160px] max-h-[240px] my-3 pr-1">
                                 <!-- Items de la venta -->
                             </div>
 
                             <div class="space-y-3 pt-3 border-t border-slate-200">
+                                <!-- SERVICIO -->
                                 <div>
-                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Servicio</label>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Servicio</label>
                                     <div class="grid grid-cols-2 gap-2">
                                         <button id="btnServMesa" class="btn-option active"><i class="fa-solid fa-chair mr-1"></i> Para Mesa</button>
                                         <button id="btnServLlevar" class="btn-option"><i class="fa-solid fa-bag-shopping mr-1"></i> Para Llevar</button>
                                     </div>
                                 </div>
 
+                                <!-- MÉTODO DE PAGO -->
                                 <div>
-                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Método de Pago</label>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Método de Pago</label>
                                     <div class="grid grid-cols-2 gap-2">
                                         <button id="btnPayEfectivo" class="btn-option active"><i class="fa-solid fa-money-bill-1-wave mr-1"></i> Efectivo</button>
                                         <button id="btnPayQR" class="btn-option"><i class="fa-solid fa-qrcode mr-1"></i> Código QR</button>
                                     </div>
                                 </div>
 
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between mt-2">
-                                    <span class="text-xs font-bold text-slate-500">Total a Pagar:</span>
-                                    <span id="txtTotal" class="text-xl font-black text-slate-900">0.00 Bs.</span>
+                                <!-- SECCIÓN DINÁMICA: CALCULADORA DE VUELTO -->
+                                <div id="panelCalculadoraVuelto" class="bg-slate-100 p-3 rounded-xl border border-slate-200 space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-600">Paga con (Bs.):</span>
+                                        <input type="number" id="inpMontoPago" class="w-24 text-right px-2 py-1 border border-slate-300 rounded-lg text-xs font-black focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="0.00">
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+                                        <span>Su Vuelto:</span>
+                                        <span id="lblVueltoCalculado" class="font-black text-emerald-600">0.00 Bs.</span>
+                                    </div>
                                 </div>
 
-                                <button id="btnPay" disabled class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                                <div class="bg-slate-900 p-3 rounded-xl flex items-center justify-between mt-2">
+                                    <span class="text-xs font-bold text-slate-400">Total a Pagar:</span>
+                                    <span id="txtTotal" class="text-lg font-black text-white">0.00 Bs.</span>
+                                </div>
+
+                                <button id="btnPay" disabled class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-sm">
                                     <i class="fa-solid fa-circle-check"></i> Completar Venta
                                 </button>
                             </div>
@@ -288,83 +323,79 @@
 
                 <!-- 2. SECCIÓN: FLUJO DE HOY Y ARQUEO DE CAJA -->
                 <section id="secHistorial" class="content-section">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div class="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xl"><i class="fa-solid fa-vault"></i></div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-lg"><i class="fa-solid fa-vault"></i></div>
                             <div>
-                                <span class="text-xs font-bold text-slate-400 block uppercase">Mis Ventas de Hoy</span>
-                                <span id="lblMiTotalHoy" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Mi Total</span>
+                                <span id="lblMiTotalHoy" class="text-sm font-black text-slate-800">0.00 Bs.</span>
                             </div>
                         </div>
-                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-xl"><i class="fa-solid fa-chart-line"></i></div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-lg"><i class="fa-solid fa-chart-line"></i></div>
                             <div>
-                                <span class="text-xs font-bold text-slate-400 block uppercase">Ventas Globales Hoy</span>
-                                <span id="lblVentasDia" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Global</span>
+                                <span id="lblVentasDia" class="text-sm font-black text-slate-800">0.00 Bs.</span>
                             </div>
                         </div>
-                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center text-green-600 text-xl"><i class="fa-solid fa-money-bill-wave"></i></div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-600 text-lg"><i class="fa-solid fa-money-bill-wave"></i></div>
                             <div>
-                                <span class="text-xs font-bold text-slate-400 block uppercase">Efectivo en Caja Hoy</span>
-                                <span id="lblEfecHoy" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Efectivo</span>
+                                <span id="lblEfecHoy" class="text-sm font-black text-slate-800">0.00 Bs.</span>
                             </div>
                         </div>
-                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                            <div class="w-12 h-12 bg-cyan-50 rounded-lg flex items-center justify-center text-cyan-600 text-xl"><i class="fa-solid fa-qrcode"></i></div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-cyan-50 rounded-lg flex items-center justify-center text-cyan-600 text-lg"><i class="fa-solid fa-qrcode"></i></div>
                             <div>
-                                <span class="text-xs font-bold text-slate-400 block uppercase">Cobros por QR Hoy</span>
-                                <span id="lblQrHoy" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Código QR</span>
+                                <span id="lblQrHoy" class="text-sm font-black text-slate-800">0.00 Bs.</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Flujo Diario en Tiempo Real
-                            </h3>
-                            <span class="text-xs text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full font-bold">Mostrador</span>
-                        </div>
+                    <!-- Flujo en tiempo real -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+                        <h3 class="text-sm font-black text-slate-800 flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Flujo Diario en Tiempo Real
+                        </h3>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full text-left text-sm">
+                            <table class="min-w-full text-left text-xs">
                                 <thead>
-                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[11px]">
-                                        <th class="py-2.5 px-3">Hora</th>
-                                        <th class="py-2.5 px-3">Cajero</th>
-                                        <th class="py-2.5 px-3">Productos</th>
-                                        <th class="py-2.5 px-3">Servicio</th>
-                                        <th class="py-2.5 px-3">Pago</th>
-                                        <th class="py-2.5 px-3 text-right">Monto</th>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px]">
+                                        <th class="py-2 px-3">Hora</th>
+                                        <th class="py-2 px-3">Cajero</th>
+                                        <th class="py-2 px-3">Productos</th>
+                                        <th class="py-2 px-3">Servicio</th>
+                                        <th class="py-2 px-3">Pago</th>
+                                        <th class="py-2 px-3 text-right">Monto</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tableCajeroPersonalBody" class="text-slate-600 text-xs divide-y divide-slate-100">
-                                    <!-- Transacciones hoy -->
+                                <tbody id="tableCajeroPersonalBody" class="text-slate-600 divide-y divide-slate-100">
+                                    <!-- Transacciones -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-calculator text-emerald-500"></i> Arqueo de Caja & Detalle de Ventas
-                            </h3>
-                            <span class="text-xs text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-bold">Cuentas Claras</span>
-                        </div>
+                    <!-- Arqueo -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                        <h3 class="text-sm font-black text-slate-800 flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-calculator text-emerald-500"></i> Arqueo de Caja Semanal
+                        </h3>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full text-left text-sm">
+                            <table class="min-w-full text-left text-xs">
                                 <thead>
-                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[11px]">
-                                        <th class="py-3 px-4">Día</th>
-                                        <th class="py-3 px-4">Detalle de Ventas (Cantidades)</th>
-                                        <th class="py-3 px-4">Efectivo Físico esperado</th>
-                                        <th class="py-3 px-4">Banco (Código QR)</th>
-                                        <th class="py-3 px-4 text-right">Monto Total</th>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px]">
+                                        <th class="py-2 px-3">Día</th>
+                                        <th class="py-2 px-3">Detalle</th>
+                                        <th class="py-2 px-3">Efectivo</th>
+                                        <th class="py-2 px-3">QR</th>
+                                        <th class="py-2 px-3 text-right">Total</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tableArqueoCajaBody" class="text-slate-600 text-xs divide-y divide-slate-100">
-                                    <!-- Agrupación semanal -->
+                                <tbody id="tableArqueoCajaBody" class="text-slate-600 divide-y divide-slate-100">
+                                    <!-- Agrupación -->
                                 </tbody>
                             </table>
                         </div>
@@ -375,9 +406,9 @@
                 <section id="secInventario" class="content-section admin-only">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                         
-                        <!-- Columna izquierda: Crear producto y Abastecer de mercadería (Lg: 4 cols) -->
+                        <!-- Columna izquierda: Formularios -->
                         <div class="lg:col-span-4 space-y-6">
-                            <!-- FORMULARIO 1: AGREGAR NUEVO PRODUCTO -->
+                            <!-- FORMULARIO 1: CREAR -->
                             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                                 <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <i class="fa-solid fa-plus text-emerald-500"></i> Nuevo Producto
@@ -385,21 +416,21 @@
                                 <form id="productForm" class="space-y-4">
                                     <div>
                                         <label class="block text-xs font-bold text-slate-500 mb-1">Nombre del Producto</label>
-                                        <input type="text" id="prodName" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ej. Coca Cola 2L" required>
+                                        <input type="text" id="prodName" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500" placeholder="Ej. Coca Cola 2L" required>
                                     </div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div>
                                             <label class="block text-xs font-bold text-slate-500 mb-1">Precio (Bs.)</label>
-                                            <input type="number" step="0.10" id="prodPrice" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="12.00" required>
+                                            <input type="number" step="0.10" id="prodPrice" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500" placeholder="12.00" required>
                                         </div>
                                         <div>
                                             <label class="block text-xs font-bold text-slate-500 mb-1">Stock Inicial</label>
-                                            <input type="number" id="prodStock" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="10" required>
+                                            <input type="number" id="prodStock" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500" placeholder="10" required>
                                         </div>
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label>
-                                        <select id="prodCategory" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                        <select id="prodCategory" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500">
                                             <option value="Bebidas">Bebidas</option>
                                             <option value="Platos">Platos</option>
                                             <option value="Postres">Postres</option>
@@ -408,15 +439,15 @@
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-500 mb-1">Imagen (Opcional)</label>
-                                        <input type="file" id="prodImage" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                                        <input type="file" id="prodImage" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700">
                                     </div>
-                                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md">
-                                        <i class="fa-solid fa-floppy-disk"></i> Guardar Nuevo Producto
+                                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+                                        Guardar Nuevo Producto
                                     </button>
                                 </form>
                             </div>
 
-                            <!-- FORMULARIO 2: ABASTECER / INGRESAR MERCADERÍA (LO NUEVO) -->
+                            <!-- FORMULARIO 2: ABASTECER -->
                             <div class="bg-white p-5 rounded-2xl border border-emerald-300 bg-emerald-50/20 shadow-sm">
                                 <h3 class="text-sm font-black text-emerald-800 mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <i class="fa-solid fa-truck-ramp-box text-emerald-600"></i> Abastecer Stock de Hoy
@@ -424,23 +455,22 @@
                                 <form id="restockForm" class="space-y-4">
                                     <div>
                                         <label class="block text-xs font-bold text-slate-600 mb-1">Selecciona el Producto</label>
-                                        <select id="restockProductSelect" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-bold text-slate-700" required>
+                                        <select id="restockProductSelect" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 bg-white font-bold text-slate-700" required>
                                             <option value="">-- Selecciona un Producto --</option>
-                                            <!-- Se llena dinámicamente -->
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-600 mb-1">Cantidad Nueva que llegó</label>
-                                        <input type="number" id="restockQuantity" min="1" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-slate-700" placeholder="Ej. 10" required>
+                                        <input type="number" id="restockQuantity" min="1" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 font-bold text-slate-700" placeholder="Ej. 10" required>
                                     </div>
-                                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md">
-                                        <i class="fa-solid fa-circle-plus"></i> Sumar al Stock actual
+                                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+                                        Sumar al Stock actual
                                     </button>
                                 </form>
                             </div>
                         </div>
 
-                        <!-- Tabla de productos registrados (Lg: 8 cols) -->
+                        <!-- Tabla de productos -->
                         <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">
                                 <i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Inventario Registrado
@@ -456,7 +486,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="adminProductsTableBody" class="text-slate-600 divide-y divide-slate-100">
-                                        <!-- Productos en inventario -->
+                                        <!-- Productos -->
                                     </tbody>
                                 </table>
                             </div>
@@ -469,7 +499,34 @@
         </main>
     </div>
 
-    <!-- TOAST DE EXITO -->
+    <!-- MODAL DE PAGO QR AUTOGENERADO (LO NUEVO) -->
+    <div id="modalQR" class="fixed inset-0 bg-slate-900/80 items-center justify-center z-50 hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
+            <h3 class="text-lg font-black text-slate-800">Cobro por Código QR</h3>
+            <p class="text-xs text-slate-500">Haz que el cliente escanee este código desde su celular para completar el pago.</p>
+            
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex justify-center items-center mx-auto w-48 h-48">
+                <!-- Imagen del QR autogenerado -->
+                <img id="imgCodigoQR" class="w-full h-full object-contain" src="" alt="Código QR de Pago">
+            </div>
+
+            <div class="bg-slate-950 p-3 rounded-xl text-white">
+                <span class="text-xs font-bold text-slate-400 block uppercase">Monto Total</span>
+                <span id="lblMontoTotalQR" class="text-xl font-black text-emerald-400">0.00 Bs.</span>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btnConfirmarPagoQR" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all">
+                    Pago Confirmado
+                </button>
+                <button id="btnCancelarPagoQR" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-xs transition-all">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST DE ÉXITO -->
     <div id="toastSuccess" class="bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800">
         <span class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-base">
             <i class="fa-solid fa-check"></i>

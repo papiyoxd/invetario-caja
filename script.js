@@ -23,6 +23,7 @@ const storage = firebase.storage();
 let currentUser = null;
 let carrito = [];
 let productosGlobales = [];
+let categoriaFiltrada = "Todos";
 
 const productsGrid = document.getElementById('productsGrid');
 const ticketList = document.getElementById('ticketList');
@@ -41,7 +42,20 @@ const btnToggle = document.getElementById('btnToggleSidebar');
 const btnClose = document.getElementById('btnCloseSidebar');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('sidebarOverlay');
-const btnMobileLogout = document.getElementById('btnMobileLogout');
+
+// Variables de pago y calculadora
+let servicioSeleccionado = "Mesa";
+let pagoSeleccionado = "Efectivo";
+const panelVuelto = document.getElementById('panelCalculadoraVuelto');
+const inpMontoPago = document.getElementById('inpMontoPago');
+const lblVueltoCalculado = document.getElementById('lblVueltoCalculado');
+
+// Variables de Modal QR
+const modalQR = document.getElementById('modalQR');
+const imgCodigoQR = document.getElementById('imgCodigoQR');
+const lblMontoTotalQR = document.getElementById('lblMontoTotalQR');
+const btnConfirmarPagoQR = document.getElementById('btnConfirmarPagoQR');
+const btnCancelarPagoQR = document.getElementById('btnCancelarPagoQR');
 
 // ==========================================
 // CONTROL DE NAVEGACIÓN
@@ -70,7 +84,7 @@ menuButtons.forEach(btn => {
 
         pageTitle.textContent = btn.textContent.trim();
 
-        if(window.innerWidth < 768) {
+        if(window.innerWidth < 1024) {
             sidebar.classList.remove('open');
             overlay.style.display = 'none';
         }
@@ -111,7 +125,7 @@ loginForm.addEventListener('submit', async (e) => {
             cargarProductos();
             cargarFlujoHoy();
             inicializarFormularioProductos(); 
-            inicializarFormularioAbastecimiento(); // Activamos el nuevo módulo
+            inicializarFormularioAbastecimiento();
         } else {
             alert('Contraseña incorrecta');
         }
@@ -131,48 +145,73 @@ function cerrarSesionSistema() {
 if (document.getElementById('btnLogout')) {
     document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
 }
-if (btnMobileLogout) {
-    btnMobileLogout.addEventListener('click', cerrarSesionSistema);
-}
 
 // ==========================================
-// GESTIÓN Y RENDERIZADO DE PRODUCTOS
+// FILTRADO Y RENDERIZADO DE PRODUCTOS
 // ==========================================
 async function cargarProductos() {
     try {
         db.collection('productos').onSnapshot(snapshot => {
             productosGlobales = [];
-            productsGrid.innerHTML = '';
-            
             snapshot.forEach(doc => {
                 const data = doc.data();
-                if (!data.name || data.price === undefined) {
-                    return; 
+                if (data.name && data.price !== undefined) {
+                    productosGlobales.push({ id: doc.id, ...data });
                 }
-
-                const prod = { id: doc.id, ...data };
-                productosGlobales.push(prod);
-                renderizarTarjetaProducto(prod);
             });
-            
+            filtrarYAplicarProductos();
             renderizarTablaAdministracionInventario();
-            actualizarSelectAbastecimiento(); // Rellena la lista de opciones para sumar stock
+            actualizarSelectAbastecimiento();
         });
     } catch (error) {
         console.error("Error cargando productos:", error);
     }
 }
 
+window.filtrarCategoria = function(cat) {
+    categoriaFiltrada = cat;
+    
+    // Cambiar estilos de los botones de filtro
+    document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+        if (btn.textContent.trim() === cat) {
+            btn.classList.add('bg-slate-900', 'text-white');
+            btn.classList.remove('bg-white', 'text-slate-600', 'border');
+        } else {
+            btn.classList.remove('bg-slate-900', 'text-white');
+            btn.classList.add('bg-white', 'text-slate-600', 'border');
+        }
+    });
+
+    filtrarYAplicarProductos();
+};
+
+function filtrarYAplicarProductos() {
+    productsGrid.innerHTML = '';
+    const query = searchInp.value.toLowerCase();
+
+    productosGlobales.forEach(prod => {
+        const coincideCategoria = (categoriaFiltrada === "Todos" || prod.category === categoriaFiltrada);
+        const coincideNombre = prod.name.toLowerCase().includes(query);
+
+        if (coincideCategoria && coincideNombre) {
+            renderizarTarjetaProducto(prod);
+        }
+    });
+}
+
 function renderizarTarjetaProducto(prod) {
     const card = document.createElement('div');
     card.className = 'product-card';
     
+    // Alerta visual de stock bajo (3 unidades o menos)
+    const claseStock = prod.stock <= 3 ? 'stock-bajo' : 'stock-alto';
+
     const imgContent = prod.imageUrl 
         ? `<img src="${prod.imageUrl}" alt="${prod.name}">` 
         : `<i class="fa-solid fa-utensils text-slate-400"></i>`;
 
     card.innerHTML = `
-        <span class="prod-stock">${prod.stock} u</span>
+        <span class="prod-stock ${claseStock}">${prod.stock} u</span>
         <div class="prod-img">${imgContent}</div>
         <div class="prod-details">
             <h4>${prod.name}</h4>
@@ -185,18 +224,10 @@ function renderizarTarjetaProducto(prod) {
     productsGrid.appendChild(card);
 }
 
-searchInp.addEventListener('input', () => {
-    const query = searchInp.value.toLowerCase();
-    productsGrid.innerHTML = '';
-    productosGlobales.forEach(prod => {
-        if (prod.name.toLowerCase().includes(query)) {
-            renderizarTarjetaProducto(prod);
-        }
-    });
-});
+searchInp.addEventListener('input', filtrarYAplicarProductos);
 
 // ==========================================
-// ELIMINAR PRODUCTOS (ADMIN)
+// ELIMINAR Y GESTIONAR PRODUCTOS (ADMIN)
 // ==========================================
 window.eliminarProductoDelSistema = async function(id, nombre) {
     if (confirm(`¿Estás seguro de que quieres eliminar "${nombre}" del inventario?`)) {
@@ -205,7 +236,6 @@ window.eliminarProductoDelSistema = async function(id, nombre) {
             alert("Producto eliminado correctamente.");
         } catch (error) {
             console.error("Error al eliminar producto:", error);
-            alert("No se pudo eliminar el producto.");
         }
     }
 };
@@ -220,7 +250,7 @@ function renderizarTablaAdministracionInventario() {
         tr.innerHTML = `
             <td class="px-4 py-2 font-bold text-slate-700">${prod.name}</td>
             <td class="px-4 py-2">${parseFloat(prod.price).toFixed(2)} Bs.</td>
-            <td class="px-4 py-2 font-black text-emerald-600">${prod.stock} u</td>
+            <td class="px-4 py-2 font-black ${prod.stock <= 3 ? 'text-red-500' : 'text-emerald-600'}">${prod.stock} u</td>
             <td class="px-4 py-2 text-right">
                 <button onclick="eliminarProductoDelSistema('${prod.id}', '${prod.name}')" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs transition-all">
                     <i class="fa-solid fa-trash-can mr-1"></i> Eliminar
@@ -253,15 +283,8 @@ function inicializarFormularioProductos() {
         const category = document.getElementById('prodCategory').value;
         const fileInput = document.getElementById('prodImage');
 
-        if (!name || isNaN(price) || isNaN(stock)) {
-            alert("Por favor completa los campos correctamente.");
-            if (btnSubmit) btnSubmit.disabled = false;
-            return;
-        }
-
         try {
             let imageUrl = "";
-
             if (fileInput && fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 const storageRef = storage.ref(`productos/${Date.now()}_${file.name}`);
@@ -282,7 +305,6 @@ function inicializarFormularioProductos() {
             cleanProductForm.reset();
         } catch (error) {
             console.error("Error al guardar producto:", error);
-            alert("Ocurrió un error al guardar el producto.");
         } finally {
             if (btnSubmit) btnSubmit.disabled = false;
         }
@@ -290,30 +312,24 @@ function inicializarFormularioProductos() {
 }
 
 // ==========================================
-// NUEVO: CONTROL DEL MÓDULO DE ABASTECIMIENTO (RE-STOCK)
+// RE-STOCK (INGRESOS DIARIOS)
 // ==========================================
 function actualizarSelectAbastecimiento() {
     const select = document.getElementById('restockProductSelect');
     if (!select) return;
 
-    // Guardamos la opción seleccionada antes de actualizar la lista para no entorpecer al usuario
     const seleccionPrevia = select.value;
-
     select.innerHTML = '<option value="">-- Selecciona un Producto --</option>';
     
-    // Ordenamos los productos alfabéticamente para que Roberto los encuentre rápido
     const ordenados = [...productosGlobales].sort((a,b) => a.name.localeCompare(b.name));
-    
     ordenados.forEach(prod => {
         const option = document.createElement('option');
         option.value = prod.id;
-        option.textContent = `${prod.name} (Tiene actual: ${prod.stock} u)`;
+        option.textContent = `${prod.name} (Actual: ${prod.stock} u)`;
         select.appendChild(option);
     });
 
-    if (seleccionPrevia) {
-        select.value = seleccionPrevia;
-    }
+    if (seleccionPrevia) select.value = seleccionPrevia;
 }
 
 function inicializarFormularioAbastecimiento() {
@@ -329,43 +345,27 @@ function inicializarFormularioAbastecimiento() {
         const prodId = document.getElementById('restockProductSelect').value;
         const cantAAgregar = parseInt(document.getElementById('restockQuantity').value);
 
-        if (!prodId || isNaN(cantAAgregar) || cantAAgregar <= 0) {
-            alert("Por favor selecciona un producto y pon una cantidad válida.");
-            return;
-        }
-
-        const productoElegido = productosGlobales.find(p => p.id === prodId);
-        if (!productoElegido) return;
+        if (!prodId || isNaN(cantAAgregar) || cantAAgregar <= 0) return;
 
         try {
             const prodRef = db.collection('productos').doc(prodId);
-            
-            // Usamos una transacción para sumar de forma completamente segura en la base de datos
             await db.runTransaction(async (transaction) => {
                 const sfDoc = await transaction.get(prodRef);
-                if (!sfDoc.exists) {
-                    throw "El producto ya no existe.";
-                }
                 const stockActual = sfDoc.data().stock || 0;
-                const nuevoStockCalculado = stockActual + cantAAgregar;
-                
-                transaction.update(prodRef, { stock: nuevoStockCalculado });
+                transaction.update(prodRef, { stock: stockActual + cantAAgregar });
             });
 
-            // Mostrar el toast verde de éxito
             toastSuccess.classList.add('show');
             setTimeout(() => { toastSuccess.classList.remove('show'); }, 3000);
-
             cleanForm.reset();
         } catch (error) {
             console.error("Error al abastecer stock:", error);
-            alert("Ocurrió un error al intentar actualizar el stock.");
         }
     });
 }
 
 // ==========================================
-// GESTIÓN DEL CARRITO (VENTA LIBRE SIN CONTROL DE BLOQUEO)
+// GESTIÓN DEL CARRITO
 // ==========================================
 window.agregarAlCarrito = function(event, id) {
     if (event) {
@@ -404,7 +404,7 @@ function actualizarTicketDOM() {
         row.innerHTML = `
             <div class="flex flex-col">
                 <span class="font-bold text-slate-800 text-xs">${item.name}</span>
-                <span class="item-qty text-[11px]">Cantidad: x${item.cantidad}</span>
+                <span class="item-qty text-[11px] text-slate-400">Cantidad: x${item.cantidad}</span>
             </div>
             <div class="flex items-center gap-3">
                 <span class="text-xs font-bold text-slate-700">${subtotalItem.toFixed(2)} Bs.</span>
@@ -416,6 +416,7 @@ function actualizarTicketDOM() {
 
     txtTotal.textContent = `${total.toFixed(2)} Bs.`;
     btnPay.disabled = carrito.length === 0;
+    calcularVuelto();
 }
 
 window.removerDelCarrito = function(index) {
@@ -428,9 +429,7 @@ document.getElementById('btnLimpiarOrden').addEventListener('click', () => {
     actualizarTicketDOM();
 });
 
-let servicioSeleccionado = "Mesa";
-let pagoSeleccionado = "Efectivo";
-
+// Cambios de opción de servicio y pago
 document.getElementById('btnServMesa').addEventListener('click', function() {
     this.classList.add('active'); document.getElementById('btnServLlevar').classList.remove('active');
     servicioSeleccionado = "Mesa";
@@ -439,21 +438,67 @@ document.getElementById('btnServLlevar').addEventListener('click', function() {
     this.classList.add('active'); document.getElementById('btnServMesa').classList.remove('active');
     servicioSeleccionado = "Llevar";
 });
+
 document.getElementById('btnPayEfectivo').addEventListener('click', function() {
     this.classList.add('active'); document.getElementById('btnPayQR').classList.remove('active');
     pagoSeleccionado = "Efectivo";
+    panelVuelto.style.display = "block";
 });
 document.getElementById('btnPayQR').addEventListener('click', function() {
     this.classList.add('active'); document.getElementById('btnPayEfectivo').classList.remove('active');
     pagoSeleccionado = "QR";
+    panelVuelto.style.display = "none";
 });
 
+// CALCULADORA DE VUELTO
+function calcularVuelto() {
+    const totalPagar = parseFloat(txtTotal.textContent);
+    const montoPaga = parseFloat(inpMontoPago.value);
+
+    if (isNaN(montoPaga) || montoPaga < totalPagar) {
+        lblVueltoCalculado.textContent = "0.00 Bs.";
+        lblVueltoCalculado.className = "font-black text-slate-400";
+    } else {
+        const vuelto = montoPaga - totalPagar;
+        lblVueltoCalculado.textContent = `${vuelto.toFixed(2)} Bs.`;
+        lblVueltoCalculado.className = "font-black text-emerald-600";
+    }
+}
+inpMontoPago.addEventListener('input', calcularVuelto);
+
 // ==========================================
-// PROCESAR FACTURACIÓN
+// ENVIAR / PROCESAR COMANDA (CON CONTROL QR)
 // ==========================================
-btnPay.addEventListener('click', async () => {
+btnPay.addEventListener('click', () => {
     if (carrito.length === 0) return;
 
+    const total = parseFloat(txtTotal.textContent);
+
+    if (pagoSeleccionado === "QR") {
+        // Generar QR Dinámico usando API de QR gratuita (QR Server)
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=Cobro_Roberto_Monto_${total.toFixed(2)}_Bs`;
+        imgCodigoQR.src = qrUrl;
+        lblMontoTotalQR.textContent = `${total.toFixed(2)} Bs.`;
+        
+        modalQR.classList.remove('hidden');
+        modalQR.classList.add('flex');
+    } else {
+        procesarVentaEnFirebase();
+    }
+});
+
+btnConfirmarPagoQR.addEventListener('click', () => {
+    modalQR.classList.remove('flex');
+    modalQR.classList.add('hidden');
+    procesarVentaEnFirebase();
+});
+
+btnCancelarPagoQR.addEventListener('click', () => {
+    modalQR.classList.remove('flex');
+    modalQR.classList.add('hidden');
+});
+
+async function procesarVentaEnFirebase() {
     btnPay.disabled = true;
     let totalFactura = 0;
     
@@ -481,9 +526,10 @@ btnPay.addEventListener('click', async () => {
             const prodRef = db.collection('productos').doc(item.id);
             await db.runTransaction(async (transaction) => {
                 const sfDoc = await transaction.get(prodRef);
-                if (!sfDoc.exists) return;
-                const nuevoStock = sfDoc.data().stock - item.cantidad;
-                transaction.update(prodRef, { stock: nuevoStock }); // Nota: Puede irse a números negativos si vendes sin stock previo
+                if (sfDoc.exists) {
+                    const nuevoStock = sfDoc.data().stock - item.cantidad;
+                    transaction.update(prodRef, { stock: nuevoStock });
+                }
             });
         }
 
@@ -491,17 +537,17 @@ btnPay.addEventListener('click', async () => {
         setTimeout(() => { toastSuccess.classList.remove('show'); }, 3500);
 
         carrito = [];
+        inpMontoPago.value = "";
         actualizarTicketDOM();
     } catch (err) {
-        console.error("Error al procesar comanda:", err);
-        alert("Hubo un error al guardar la venta.");
+        console.error("Error al procesar venta:", err);
     } finally {
         btnPay.disabled = false;
     }
-});
+}
 
 // ==========================================
-// REGRESO DEL FLUJO DE HOY Y ARQUEO DE CAJA
+// FLUJO HISTORIAL Y ARQUEO DE CAJA
 // ==========================================
 function cargarFlujoHoy() {
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -518,13 +564,9 @@ function cargarFlujoHoy() {
       .onSnapshot(snapshot => {
           
           const tbodyFlujo = document.getElementById('tableCajeroPersonalBody');
-          if (tbodyFlujo) {
-              tbodyFlujo.innerHTML = '';
-          }
+          if (tbodyFlujo) tbodyFlujo.innerHTML = '';
 
-          let miTotalHoy = 0;
-          let globalDia = 0;
-          let efecHoy = 0, qrHoy = 0;
+          let miTotalHoy = 0, globalDia = 0, efecHoy = 0, qrHoy = 0;
 
           const arqueoSemanal = {};
           diasSemana.forEach(d => {
@@ -553,9 +595,7 @@ function cargarFlujoHoy() {
 
               if (fechaVenta >= inicioHoy) {
                   globalDia += v.monto;
-                  if (v.cajero === currentUser.user) {
-                      miTotalHoy += v.monto;
-                  }
+                  if (v.cajero === currentUser.user) miTotalHoy += v.monto;
                   if (v.pago === 'Efectivo') efecHoy += v.monto;
                   if (v.pago === 'QR') qrHoy += v.monto;
 
@@ -564,20 +604,20 @@ function cargarFlujoHoy() {
                   if (tbodyFlujo) {
                       const tr = document.createElement('tr');
                       tr.innerHTML = `
-                          <td class="py-2.5 px-3"><span class="font-bold text-slate-600">${hora}</span></td>
-                          <td class="py-2.5 px-3 text-slate-700">${v.cajero}</td>
-                          <td class="py-2.5 px-3 max-w-[150px] truncate text-slate-600 font-medium">${v.items}</td>
-                          <td class="py-2.5 px-3">
+                          <td class="py-2 px-3"><span class="font-bold text-slate-600">${hora}</span></td>
+                          <td class="py-2 px-3 text-slate-700">${v.cajero}</td>
+                          <td class="py-2 px-3 max-w-[150px] truncate text-slate-600 font-medium">${v.items}</td>
+                          <td class="py-2 px-3">
                               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${v.servicio === 'Mesa' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}">
                                   ${v.servicio}
                               </span>
                           </td>
-                          <td class="py-2.5 px-3">
+                          <td class="py-2 px-3">
                               <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${v.pago === 'QR' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}">
                                   ${v.pago}
                               </span>
                           </td>
-                          <td class="py-2.5 px-3 text-right font-black text-slate-800">${v.monto.toFixed(2)} Bs.</td>
+                          <td class="py-2 px-3 text-right font-black text-slate-800">${v.monto.toFixed(2)} Bs.</td>
                       `;
                       tbodyFlujo.appendChild(tr);
                   }
@@ -597,11 +637,11 @@ function cargarFlujoHoy() {
                       const tr = document.createElement('tr');
                       tr.className = "hover:bg-slate-50 border-b";
                       tr.innerHTML = `
-                          <td class="py-3 px-4 font-bold text-slate-800">${dia}</td>
-                          <td class="py-3 px-4 text-xs text-slate-500 max-w-[200px] truncate" title="${detalleProd}">${detalleProd}</td>
-                          <td class="py-3 px-4 font-bold text-emerald-600">${datos.efectivo.toFixed(2)} Bs.</td>
-                          <td class="py-3 px-4 font-bold text-blue-600">${datos.qr.toFixed(2)} Bs.</td>
-                          <td class="py-3 px-4 text-right font-black text-slate-900">${datos.total.toFixed(2)} Bs.</td>
+                          <td class="py-2 px-3 font-bold text-slate-800">${dia}</td>
+                          <td class="py-2 px-3 text-[11px] text-slate-500 max-w-[140px] truncate" title="${detalleProd}">${detalleProd}</td>
+                          <td class="py-2 px-3 font-bold text-emerald-600">${datos.efectivo.toFixed(2)} Bs.</td>
+                          <td class="py-2 px-3 font-bold text-blue-600">${datos.qr.toFixed(2)} Bs.</td>
+                          <td class="py-2 px-3 text-right font-black text-slate-900">${datos.total.toFixed(2)} Bs.</td>
                       `;
                       tbodyArqueo.appendChild(tr);
                   }
