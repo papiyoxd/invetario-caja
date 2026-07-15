@@ -82,7 +82,7 @@ menuButtons.forEach(btn => {
 });
 
 // ==========================================
-// INICIO DE SESIÓN ADAPTADO A TU BASE DE DATOS
+// INICIO DE SESIÓN
 // ==========================================
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -90,7 +90,6 @@ loginForm.addEventListener('submit', async (e) => {
     const passInp = document.getElementById('password').value;
 
     try {
-        // Busca exactamente en la columna 'user' de tu Firestore
         const snapshot = await db.collection('usuarios').where('user', '==', userInp).get();
         if (snapshot.empty) {
             alert('Usuario no encontrado');
@@ -100,7 +99,6 @@ loginForm.addEventListener('submit', async (e) => {
         let userData = null;
         snapshot.forEach(doc => { userData = doc.data(); });
 
-        // Compara con la columna 'pass' de tu Firestore
         if (userData.pass === passInp) {
             currentUser = userData;
             document.getElementById('userProfileName').textContent = currentUser.user;
@@ -116,7 +114,7 @@ loginForm.addEventListener('submit', async (e) => {
             loginOverlay.style.display = 'none';
             cargarProductos();
             cargarFlujoHoy();
-            inicializarFormularioProductos(); // Inicializar el gestor de productos nuevos
+            inicializarFormularioProductos(); 
         } else {
             alert('Contraseña incorrecta');
         }
@@ -125,7 +123,6 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Función limpia para Cerrar Sesión
 function cerrarSesionSistema() {
     currentUser = null;
     carrito = [];
@@ -142,7 +139,7 @@ if (btnMobileLogout) {
 }
 
 // ==========================================
-// RENDERIZADO DE PRODUCTOS (CAJA POS)
+// GESTIÓN Y RENDERIZADO DE PRODUCTOS (CON SEGURIDAD ANTI-UNDEFINED)
 // ==========================================
 async function cargarProductos() {
     try {
@@ -151,10 +148,20 @@ async function cargarProductos() {
             productsGrid.innerHTML = '';
             
             snapshot.forEach(doc => {
-                const prod = { id: doc.id, ...doc.data() };
+                const data = doc.data();
+                
+                // FILTRO DE SEGURIDAD: Si no tiene nombre o precio válido, lo ignoramos para que no aparezca "undefined"
+                if (!data.name || data.price === undefined) {
+                    return; 
+                }
+
+                const prod = { id: doc.id, ...data };
                 productosGlobales.push(prod);
                 renderizarTarjetaProducto(prod);
             });
+            
+            // Actualizar tabla de inventario administrativo si existe
+            renderizarTablaAdministracionInventario();
         });
     } catch (error) {
         console.error("Error cargando productos:", error);
@@ -194,18 +201,54 @@ searchInp.addEventListener('input', () => {
 });
 
 // ==========================================
+// FUNCIÓN PARA ELIMINAR PRODUCTOS (ADMIN)
+// ==========================================
+window.eliminarProductoDelSistema = async function(id, nombre) {
+    if (confirm(`¿Estás seguro de que quieres eliminar "${nombre}" del inventario?`)) {
+        try {
+            await db.collection('productos').doc(id).delete();
+            alert("Producto eliminado correctamente.");
+        } catch (error) {
+            console.error("Error al eliminar producto:", error);
+            alert("No se pudo eliminar el producto.");
+        }
+    }
+};
+
+// Generar lista de productos con botón de eliminar en la sección administrativa
+function renderizarTablaAdministracionInventario() {
+    const adminTableBody = document.getElementById('adminProductsTableBody');
+    if (!adminTableBody) return; // Si no tienes este elemento en tu HTML, no pasa nada
+
+    adminTableBody.innerHTML = '';
+    productosGlobales.forEach(prod => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="px-4 py-2 font-bold text-slate-700">${prod.name}</td>
+            <td class="px-4 py-2">${parseFloat(prod.price).toFixed(2)} Bs.</td>
+            <td class="px-4 py-2">${prod.stock} u</td>
+            <td class="px-4 py-2 text-right">
+                <button onclick="eliminarProductoDelSistema('${prod.id}', '${prod.name}')" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs transition-all">
+                    <i class="fa-solid fa-trash-can mr-1"></i> Eliminar
+                </button>
+            </td>
+        `;
+        adminTableBody.appendChild(tr);
+    });
+}
+
+// ==========================================
 // SECCIÓN ADMINISTRADOR: AGREGAR NUEVOS PRODUCTOS
 // ==========================================
 function inicializarFormularioProductos() {
     const productForm = document.getElementById('productForm');
     if (!productForm) return;
 
-    // Removemos duplicados de eventos por si acaso
     productForm.replaceWith(productForm.cloneNode(true));
     const cleanProductForm = document.getElementById('productForm');
 
     cleanProductForm.addEventListener('submit', async (e) => {
-        e.preventDefault(); // <-- ESTO EVITA QUE LA PÁGINA SE RECARGUE Y SE CIERRE LA SESIÓN
+        e.preventDefault(); 
 
         const btnSubmit = cleanProductForm.querySelector('button[type="submit"]');
         if (btnSubmit) btnSubmit.disabled = true;
@@ -225,7 +268,6 @@ function inicializarFormularioProductos() {
         try {
             let imageUrl = "";
 
-            // Subir imagen a Firebase Storage si seleccionaron una
             if (fileInput && fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 const storageRef = storage.ref(`productos/${Date.now()}_${file.name}`);
@@ -233,7 +275,6 @@ function inicializarFormularioProductos() {
                 imageUrl = await uploadTask.ref.getDownloadURL();
             }
 
-            // Guardar el nuevo producto en Firestore
             await db.collection('productos').add({
                 name: name,
                 price: price,
@@ -255,7 +296,7 @@ function inicializarFormularioProductos() {
 }
 
 // ==========================================
-// GESTIÓN DEL CARRITO / TICKET DE VENTA
+// GESTIÓN DEL CARRITO
 // ==========================================
 window.agregarAlCarrito = function(event, id) {
     if (event) {
@@ -355,15 +396,20 @@ btnPay.addEventListener('click', async () => {
 
     btnPay.disabled = true;
     let totalFactura = 0;
-    const itemsResumen = carrito.map(i => {
+    
+    // Guardamos los items en formato detallado array para análisis posterior estructurado
+    const itemsArray = carrito.map(i => {
         totalFactura += (i.price * i.cantidad);
-        return `${i.name} (x${i.cantidad})`;
-    }).join(', ');
+        return { name: i.name, cantidad: i.cantidad };
+    });
+
+    const itemsResumenText = itemsArray.map(i => `${i.name} (x${i.cantidad})`).join(', ');
 
     const nuevaVenta = {
         fecha: firebase.firestore.Timestamp.now(),
         cajero: currentUser.user,
-        items: itemsResumen,
+        items: itemsResumenText,
+        itemsDetallados: itemsArray, // Guardado estructurado
         servicio: servicioSeleccionado,
         pago: pagoSeleccionado,
         monto: totalFactura
@@ -396,51 +442,109 @@ btnPay.addEventListener('click', async () => {
 });
 
 // ==========================================
-// RENDIMIENTO / HISTORIAL DIARIO
+// RENDIMIENTO DIARIO PROFESIONAL (AGRUPADO POR DÍA)
 // ==========================================
 function cargarFlujoHoy() {
-    const inicioHoy = new Date();
-    inicioHoy.setHours(0,0,0,0);
+    const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    
+    // Obtener las ventas de los últimos 7 días
+    const haceSieteDias = new Date();
+    haceSieteDias.setDate(haceSieteDias.getDate() - 7);
+    haceSieteDias.setHours(0,0,0,0);
 
     db.collection('ventas')
-      .where('fecha', '>=', inicioHoy)
+      .where('fecha', '>=', haceSieteDias)
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
           const tbody = document.getElementById('tableCajeroPersonalBody');
           if(!tbody) return;
           tbody.innerHTML = '';
 
-          let miTotal = 0;
+          let miTotalHoy = 0;
           let globalDia = 0;
           let efecHoy = 0, qrHoy = 0;
+          
+          const inicioHoy = new Date();
+          inicioHoy.setHours(0,0,0,0);
+
+          // Estructura de agrupación diaria profesional
+          const reporteSemanario = {};
+          diasSemana.forEach(d => {
+              reporteSemanario[d] = { total: 0, productos: {} };
+          });
 
           snapshot.forEach(doc => {
               const v = doc.data();
-              globalDia += v.monto;
-              
-              if (v.cajero === currentUser.user) {
-                  miTotal += v.monto;
+              const fechaVenta = v.fecha ? v.fecha.toDate() : new Date();
+              const nombreDia = diasSemana[fechaVenta.getDay()];
+
+              // 1. Acumular totales para el reporte diario agrupado
+              if (v.monto) {
+                  reporteSemanario[nombreDia].total += v.monto;
+                  
+                  // Desglosar los productos de la venta
+                  if (v.itemsDetallados && Array.isArray(v.itemsDetallados)) {
+                      v.itemsDetallados.forEach(it => {
+                          if (!reporteSemanario[nombreDia].productos[it.name]) {
+                              reporteSemanario[nombreDia].productos[it.name] = 0;
+                          }
+                          reporteSemanario[nombreDia].productos[it.name] += it.cantidad;
+                      });
+                  } else {
+                      // Fallback si viene en formato texto antiguo
+                      const itemsSplit = v.items.split(', ');
+                      itemsSplit.forEach(itemStr => {
+                          const match = itemStr.match(/(.+) \(x(\d+)\)/);
+                          if (match) {
+                              const nombreProd = match[1];
+                              const cant = parseInt(match[2]);
+                              if (!reporteSemanario[nombreDia].productos[nombreProd]) {
+                                  reporteSemanario[nombreDia].productos[nombreProd] = 0;
+                              }
+                              reporteSemanario[nombreDia].productos[nombreProd] += cant;
+                          }
+                      });
+                  }
               }
-              if (v.pago === 'Efectivo') efecHoy += v.monto;
-              if (v.pago === 'QR') qrHoy += v.monto;
 
-              const hora = v.fecha ? v.fecha.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
-
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                  <td><span class="font-bold text-slate-600">${hora}</span></td>
-                  <td class="text-xs">${v.cajero}</td>
-                  <td class="max-w-[120px] truncate text-slate-700 font-medium">${v.items}</td>
-                  <td><span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 font-bold">${v.servicio}</span></td>
-                  <td><span class="px-2 py-0.5 rounded text-[10px] ${v.pago === 'QR' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'} font-black">${v.pago}</span></td>
-                  <td style="text-align:right;" class="font-bold">${v.monto.toFixed(2)} Bs.</td>
-              `;
-              tbody.appendChild(tr);
+              // 2. Totales específicos para la vista rápida de "HOY"
+              if (fechaVenta >= inicioHoy) {
+                  globalDia += v.monto;
+                  if (v.cajero === currentUser.user) {
+                      miTotalHoy += v.monto;
+                  }
+                  if (v.pago === 'Efectivo') efecHoy += v.monto;
+                  if (v.pago === 'QR') qrHoy += v.monto;
+              }
           });
 
-          document.getElementById('lblMiTotalHoy').textContent = `${miTotal.toFixed(2)} Bs.`;
-          document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
-          document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
-          document.getElementById('lblQrHoy').textContent = `${qrHoy.toFixed(2)} Bs.`;
+          // 3. Renderizar en la tabla de forma organizada y elegante por día
+          diasSemana.forEach(dia => {
+              const datosDia = reporteSemanario[dia];
+              if (datosDia.total > 0) {
+                  
+                  // Generar el texto detallado (ejemplo: "5 silpacho, 3 soda")
+                  const detalleArray = [];
+                  for (const [prodName, cant] of Object.entries(datosDia.productos)) {
+                      detalleArray.push(`${cant} ${prodName}`);
+                  }
+                  const detalleTexto = detalleArray.join(', ');
+
+                  const tr = document.createElement('tr');
+                  tr.className = "hover:bg-slate-50 transition-colors border-b";
+                  tr.innerHTML = `
+                      <td class="py-3 px-4 font-bold text-slate-800">${dia}</td>
+                      <td class="py-3 px-4 text-xs text-slate-600 max-w-[250px] truncate" title="${detalleTexto}">${detalleTexto}</td>
+                      <td class="py-3 px-4 text-right font-black text-emerald-600 text-sm">${datosDia.total.toFixed(2)} Bs.</td>
+                  `;
+                  tbody.appendChild(tr);
+              }
+          });
+
+          // Actualizar etiquetas de resumen rápido en la UI
+          if(document.getElementById('lblMiTotalHoy')) document.getElementById('lblMiTotalHoy').textContent = `${miTotalHoy.toFixed(2)} Bs.`;
+          if(document.getElementById('lblVentasDia')) document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
+          if(document.getElementById('lblEfecHoy')) document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
+          if(document.getElementById('lblQrHoy')) document.getElementById('lblQrHoy').textContent = `${qrHoy.toFixed(2)} Bs.`;
       });
 }
