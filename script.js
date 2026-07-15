@@ -1,13 +1,14 @@
 // ==========================================
-// CONFIGURACIÓN DE FIREBASE (Usa tus credenciales reales aquí)
+// CONFIGURACIÓN DE FIREBASE REAL
 // ==========================================
 const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "TU_AUTH_DOMAIN",
-    projectId: "TU_PROJECT_ID",
-    storageBucket: "TU_STORAGE_BUCKET",
-    messagingSenderId: "TU_MESSAGING_SENDER_ID",
-    appId: "TU_APP_ID"
+    apiKey: "AIzaSyC3n7TnjNWqTz4aoCgzT23-2dt2_Ot73zQ",
+    authDomain: "inventario-caja.firebaseapp.com",
+    projectId: "inventario-caja",
+    storageBucket: "inventario-caja.appspot.com",
+    messagingSenderId: "1046473810130",
+    appId: "1:1046473810130:web:c4fefca1f1ee318ee8cd0b",
+    measurementId: "G-2WT4LW787T"
 };
 
 // Inicializar Firebase si no se ha hecho
