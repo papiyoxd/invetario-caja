@@ -11,7 +11,6 @@ const firebaseConfig = {
     measurementId: "G-2WT4LW787T"
 };
 
-// Inicializar Firebase si no se ha hecho
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
@@ -25,7 +24,6 @@ let currentUser = null;
 let carrito = [];
 let productosGlobales = [];
 
-// Elementos del DOM
 const productsGrid = document.getElementById('productsGrid');
 const ticketList = document.getElementById('ticketList');
 const txtTotal = document.getElementById('txtTotal');
@@ -35,12 +33,10 @@ const loginOverlay = document.getElementById('loginOverlay');
 const loginForm = document.getElementById('loginForm');
 const toastSuccess = document.getElementById('toastSuccess');
 
-// Elementos de Navegación
 const menuButtons = document.querySelectorAll('.menu-item');
 const sections = document.querySelectorAll('.content-section');
 const pageTitle = document.getElementById('pageTitle');
 
-// Elementos de Menú Hamburguesa Celular
 const btnToggle = document.getElementById('btnToggleSidebar');
 const btnClose = document.getElementById('btnCloseSidebar');
 const sidebar = document.getElementById('sidebar');
@@ -48,7 +44,7 @@ const overlay = document.getElementById('sidebarOverlay');
 const btnMobileLogout = document.getElementById('btnMobileLogout');
 
 // ==========================================
-// CONTROL DE MÓDULOS / NAVEGACIÓN
+// CONTROL DE NAVEGACIÓN
 // ==========================================
 function toggleMenu() {
     if (!sidebar || !overlay) return;
@@ -115,6 +111,7 @@ loginForm.addEventListener('submit', async (e) => {
             cargarProductos();
             cargarFlujoHoy();
             inicializarFormularioProductos(); 
+            inicializarFormularioAbastecimiento(); // Activamos el nuevo módulo
         } else {
             alert('Contraseña incorrecta');
         }
@@ -139,7 +136,7 @@ if (btnMobileLogout) {
 }
 
 // ==========================================
-// GESTIÓN Y RENDERIZADO DE PRODUCTOS (SEGURIDAD ANTI-UNDEFINED)
+// GESTIÓN Y RENDERIZADO DE PRODUCTOS
 // ==========================================
 async function cargarProductos() {
     try {
@@ -149,8 +146,6 @@ async function cargarProductos() {
             
             snapshot.forEach(doc => {
                 const data = doc.data();
-                
-                // Ignorar productos rotos de la base de datos
                 if (!data.name || data.price === undefined) {
                     return; 
                 }
@@ -161,6 +156,7 @@ async function cargarProductos() {
             });
             
             renderizarTablaAdministracionInventario();
+            actualizarSelectAbastecimiento(); // Rellena la lista de opciones para sumar stock
         });
     } catch (error) {
         console.error("Error cargando productos:", error);
@@ -224,7 +220,7 @@ function renderizarTablaAdministracionInventario() {
         tr.innerHTML = `
             <td class="px-4 py-2 font-bold text-slate-700">${prod.name}</td>
             <td class="px-4 py-2">${parseFloat(prod.price).toFixed(2)} Bs.</td>
-            <td class="px-4 py-2">${prod.stock} u</td>
+            <td class="px-4 py-2 font-black text-emerald-600">${prod.stock} u</td>
             <td class="px-4 py-2 text-right">
                 <button onclick="eliminarProductoDelSistema('${prod.id}', '${prod.name}')" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs transition-all">
                     <i class="fa-solid fa-trash-can mr-1"></i> Eliminar
@@ -236,7 +232,7 @@ function renderizarTablaAdministracionInventario() {
 }
 
 // ==========================================
-// ADMINISTRADOR: FORMULARIO DE PRODUCTOS
+// ADMINISTRADOR: CREACIÓN DE PRODUCTOS
 // ==========================================
 function inicializarFormularioProductos() {
     const productForm = document.getElementById('productForm');
@@ -294,7 +290,82 @@ function inicializarFormularioProductos() {
 }
 
 // ==========================================
-// GESTIÓN DEL CARRITO
+// NUEVO: CONTROL DEL MÓDULO DE ABASTECIMIENTO (RE-STOCK)
+// ==========================================
+function actualizarSelectAbastecimiento() {
+    const select = document.getElementById('restockProductSelect');
+    if (!select) return;
+
+    // Guardamos la opción seleccionada antes de actualizar la lista para no entorpecer al usuario
+    const seleccionPrevia = select.value;
+
+    select.innerHTML = '<option value="">-- Selecciona un Producto --</option>';
+    
+    // Ordenamos los productos alfabéticamente para que Roberto los encuentre rápido
+    const ordenados = [...productosGlobales].sort((a,b) => a.name.localeCompare(b.name));
+    
+    ordenados.forEach(prod => {
+        const option = document.createElement('option');
+        option.value = prod.id;
+        option.textContent = `${prod.name} (Tiene actual: ${prod.stock} u)`;
+        select.appendChild(option);
+    });
+
+    if (seleccionPrevia) {
+        select.value = seleccionPrevia;
+    }
+}
+
+function inicializarFormularioAbastecimiento() {
+    const restockForm = document.getElementById('restockForm');
+    if (!restockForm) return;
+
+    restockForm.replaceWith(restockForm.cloneNode(true));
+    const cleanForm = document.getElementById('restockForm');
+
+    cleanForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const prodId = document.getElementById('restockProductSelect').value;
+        const cantAAgregar = parseInt(document.getElementById('restockQuantity').value);
+
+        if (!prodId || isNaN(cantAAgregar) || cantAAgregar <= 0) {
+            alert("Por favor selecciona un producto y pon una cantidad válida.");
+            return;
+        }
+
+        const productoElegido = productosGlobales.find(p => p.id === prodId);
+        if (!productoElegido) return;
+
+        try {
+            const prodRef = db.collection('productos').doc(prodId);
+            
+            // Usamos una transacción para sumar de forma completamente segura en la base de datos
+            await db.runTransaction(async (transaction) => {
+                const sfDoc = await transaction.get(prodRef);
+                if (!sfDoc.exists) {
+                    throw "El producto ya no existe.";
+                }
+                const stockActual = sfDoc.data().stock || 0;
+                const nuevoStockCalculado = stockActual + cantAAgregar;
+                
+                transaction.update(prodRef, { stock: nuevoStockCalculado });
+            });
+
+            // Mostrar el toast verde de éxito
+            toastSuccess.classList.add('show');
+            setTimeout(() => { toastSuccess.classList.remove('show'); }, 3000);
+
+            cleanForm.reset();
+        } catch (error) {
+            console.error("Error al abastecer stock:", error);
+            alert("Ocurrió un error al intentar actualizar el stock.");
+        }
+    });
+}
+
+// ==========================================
+// GESTIÓN DEL CARRITO (VENTA LIBRE SIN CONTROL DE BLOQUEO)
 // ==========================================
 window.agregarAlCarrito = function(event, id) {
     if (event) {
@@ -305,17 +376,8 @@ window.agregarAlCarrito = function(event, id) {
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod) return;
 
-    if (prod.stock <= 0) {
-        alert("¡Producto sin stock disponible!");
-        return;
-    }
-
     const itemCar = carrito.find(c => c.id === id);
     if (itemCar) {
-        if (itemCar.cantidad >= prod.stock) {
-            alert("No puedes agregar más de lo que hay en stock.");
-            return;
-        }
         itemCar.cantidad++;
     } else {
         carrito.push({
@@ -387,7 +449,7 @@ document.getElementById('btnPayQR').addEventListener('click', function() {
 });
 
 // ==========================================
-// PROCESAR FACTURACIÓN / COMANDA
+// PROCESAR FACTURACIÓN
 // ==========================================
 btnPay.addEventListener('click', async () => {
     if (carrito.length === 0) return;
@@ -421,7 +483,7 @@ btnPay.addEventListener('click', async () => {
                 const sfDoc = await transaction.get(prodRef);
                 if (!sfDoc.exists) return;
                 const nuevoStock = sfDoc.data().stock - item.cantidad;
-                transaction.update(prodRef, { stock: nuevoStock >= 0 ? nuevoStock : 0 });
+                transaction.update(prodRef, { stock: nuevoStock }); // Nota: Puede irse a números negativos si vendes sin stock previo
             });
         }
 
@@ -439,14 +501,13 @@ btnPay.addEventListener('click', async () => {
 });
 
 // ==========================================
-// EL REGRESO DEL FLUJO DE HOY Y ARQUEO DE CAJA
+// REGRESO DEL FLUJO DE HOY Y ARQUEO DE CAJA
 // ==========================================
 function cargarFlujoHoy() {
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const inicioHoy = new Date();
     inicioHoy.setHours(0,0,0,0);
 
-    // Consultamos las ventas de los últimos 7 días para agrupar tu Arqueo Semanal
     const haceSieteDias = new Date();
     haceSieteDias.setDate(haceSieteDias.getDate() - 7);
     haceSieteDias.setHours(0,0,0,0);
@@ -456,7 +517,6 @@ function cargarFlujoHoy() {
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
           
-          // 1. RENDERIZAR TU AMADO FLUJO EN TIEMPO REAL (SOLO VENTAS DE HOY)
           const tbodyFlujo = document.getElementById('tableCajeroPersonalBody');
           if (tbodyFlujo) {
               tbodyFlujo.innerHTML = '';
@@ -466,7 +526,6 @@ function cargarFlujoHoy() {
           let globalDia = 0;
           let efecHoy = 0, qrHoy = 0;
 
-          // Estructura para agrupar tus arqueos semanales de forma ultra-profesional
           const arqueoSemanal = {};
           diasSemana.forEach(d => {
               arqueoSemanal[d] = { total: 0, efectivo: 0, qr: 0, productos: {} };
@@ -477,13 +536,11 @@ function cargarFlujoHoy() {
               const fechaVenta = v.fecha ? v.fecha.toDate() : new Date();
               const nombreDia = diasSemana[fechaVenta.getDay()];
 
-              // --- A) Agrupación para el Arqueo Semanal ---
               if (v.monto) {
                   arqueoSemanal[nombreDia].total += v.monto;
                   if (v.pago === 'Efectivo') arqueoSemanal[nombreDia].efectivo += v.monto;
                   if (v.pago === 'QR') arqueoSemanal[nombreDia].qr += v.monto;
 
-                  // Desglose de productos
                   if (v.itemsDetallados && Array.isArray(v.itemsDetallados)) {
                       v.itemsDetallados.forEach(it => {
                           if (!arqueoSemanal[nombreDia].productos[it.name]) {
@@ -494,7 +551,6 @@ function cargarFlujoHoy() {
                   }
               }
 
-              // --- B) Flujo de Hoy en Tiempo Real ---
               if (fechaVenta >= inicioHoy) {
                   globalDia += v.monto;
                   if (v.cajero === currentUser.user) {
@@ -505,7 +561,6 @@ function cargarFlujoHoy() {
 
                   const hora = v.fecha ? v.fecha.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
 
-                  // Insertamos la fila en tu tabla tradicional de Flujo Diario
                   if (tbodyFlujo) {
                       const tr = document.createElement('tr');
                       tr.innerHTML = `
@@ -529,14 +584,12 @@ function cargarFlujoHoy() {
               }
           });
 
-          // 2. RENDERIZAR LA NUEVA TABLA DE ARQUEO DE CAJA
           const tbodyArqueo = document.getElementById('tableArqueoCajaBody');
           if (tbodyArqueo) {
               tbodyArqueo.innerHTML = '';
               diasSemana.forEach(dia => {
                   const datos = arqueoSemanal[dia];
                   if (datos.total > 0) {
-                      // Generar detalle de los productos vendidos
                       const detalleProd = Object.entries(datos.productos)
                           .map(([name, cant]) => `${cant} ${name}`)
                           .join(', ');
@@ -555,7 +608,6 @@ function cargarFlujoHoy() {
               });
           }
 
-          // Actualizar contadores superiores de hoy
           if(document.getElementById('lblMiTotalHoy')) document.getElementById('lblMiTotalHoy').textContent = `${miTotalHoy.toFixed(2)} Bs.`;
           if(document.getElementById('lblVentasDia')) document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
           if(document.getElementById('lblEfecHoy')) document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;

@@ -9,7 +9,6 @@
     <!-- Font Awesome para Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Estilos personalizados para la interfaz */
         .content-section { display: none; }
         .active-section { display: block; }
         .product-card {
@@ -91,7 +90,6 @@
             background: #0f172a;
             color: white;
         }
-        /* Menú lateral responsivo */
         #sidebar {
             transition: transform 0.3s ease-in-out;
         }
@@ -105,7 +103,6 @@
                 transform: translateX(0);
             }
         }
-        /* Notificación Toast */
         #toastSuccess {
             position: fixed;
             bottom: 20px;
@@ -167,7 +164,6 @@
         <!-- BARRA LATERAL (SIDEBAR) -->
         <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between h-full border-r border-slate-800 shrink-0">
             <div>
-                <!-- Encabezado de Sidebar -->
                 <div class="p-6 border-b border-slate-800 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-lg font-bold">
@@ -180,7 +176,6 @@
                     </button>
                 </div>
 
-                <!-- Perfil de Usuario Logueado -->
                 <div class="p-4 border-b border-slate-800 flex items-center gap-3">
                     <div id="userAvatar" class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">
                         R
@@ -191,7 +186,6 @@
                     </div>
                 </div>
 
-                <!-- Menú de Navegación -->
                 <nav class="p-4 space-y-1">
                     <button data-target="secPuntoVenta" class="menu-item active flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white [&.active]:shadow-lg [&.active]:shadow-emerald-900/30">
                         <i class="fa-solid fa-cash-register"></i> Punto de Venta
@@ -205,7 +199,6 @@
                 </nav>
             </div>
 
-            <!-- Botón de Cerrar Sesión (Abajo) -->
             <div class="p-4 border-t border-slate-800">
                 <button id="btnLogout" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all">
                     <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
@@ -216,7 +209,6 @@
         <!-- ÁREA DE CONTENIDO -->
         <main class="flex-1 flex flex-col h-full overflow-hidden">
 
-            <!-- BARRA SUPERIOR (HEADER) -->
             <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
                 <div class="flex items-center gap-4">
                     <button id="btnToggleSidebar" class="md:hidden text-slate-600 hover:text-slate-900">
@@ -225,23 +217,20 @@
                     <h2 id="pageTitle" class="text-xl font-black text-slate-800">Punto de Venta</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-xs text-slate-400 font-medium">Estado del Servidor:</span>
+                    <span class="text-xs text-slate-400 font-medium">Estado:</span>
                     <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase Online
                     </span>
                 </div>
             </header>
 
-            <!-- SECCIONES DINÁMICAS -->
             <div class="flex-1 overflow-y-auto p-4 md:p-6">
 
                 <!-- 1. SECCIÓN: PUNTO DE VENTA -->
                 <section id="secPuntoVenta" class="content-section active-section">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
                         
-                        <!-- Columna de Productos (Lg: 8 cols) -->
                         <div class="lg:col-span-8 flex flex-col gap-4">
-                            <!-- Barra de búsqueda -->
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -249,13 +238,11 @@
                                 <input type="text" id="searchInp" class="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm" placeholder="Buscar producto por nombre...">
                             </div>
 
-                            <!-- Grid de Productos -->
                             <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                <!-- Las tarjetas de productos se renderizan dinámicamente aquí -->
+                                <!-- Productos dinámicos -->
                             </div>
                         </div>
 
-                        <!-- Columna de Comanda / Ticket (Lg: 4 cols) -->
                         <div class="lg:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col max-h-[600px]">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-200">
                                 <h3 class="font-black text-slate-800 flex items-center gap-2">
@@ -264,14 +251,11 @@
                                 <button id="btnLimpiarOrden" class="text-xs text-red-500 hover:underline font-bold">Limpiar todo</button>
                             </div>
 
-                            <!-- Lista de items en el carrito -->
                             <div id="ticketList" class="flex-1 overflow-y-auto min-h-[200px] max-h-[300px] my-3 pr-1">
-                                <!-- Los productos agregados aparecerán aquí -->
+                                <!-- Items de la venta -->
                             </div>
 
-                            <!-- Opciones de Servicio y Pago -->
                             <div class="space-y-3 pt-3 border-t border-slate-200">
-                                <!-- Servicio -->
                                 <div>
                                     <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Servicio</label>
                                     <div class="grid grid-cols-2 gap-2">
@@ -280,7 +264,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Método de Pago -->
                                 <div>
                                     <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Método de Pago</label>
                                     <div class="grid grid-cols-2 gap-2">
@@ -289,7 +272,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Total y Botón de Pago -->
                                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between mt-2">
                                     <span class="text-xs font-bold text-slate-500">Total a Pagar:</span>
                                     <span id="txtTotal" class="text-xl font-black text-slate-900">0.00 Bs.</span>
@@ -306,7 +288,6 @@
 
                 <!-- 2. SECCIÓN: FLUJO DE HOY Y ARQUEO DE CAJA -->
                 <section id="secHistorial" class="content-section">
-                    <!-- Tarjetas informativas superiores (Hoy) -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                             <div class="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xl"><i class="fa-solid fa-vault"></i></div>
@@ -338,7 +319,6 @@
                         </div>
                     </div>
 
-                    <!-- TABLA 1: TU AMADO FLUJO DE HOY EN TIEMPO REAL -->
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
@@ -359,13 +339,12 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tableCajeroPersonalBody" class="text-slate-600 text-xs divide-y divide-slate-100">
-                                    <!-- Las transacciones de hoy aparecerán aquí al instante -->
+                                    <!-- Transacciones hoy -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- TABLA 2: ARQUEO DE CAJA SEMANAL (CÁLCULOS DE EFECTIVO VS QR) -->
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
@@ -385,7 +364,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tableArqueoCajaBody" class="text-slate-600 text-xs divide-y divide-slate-100">
-                                    <!-- Agrupación por días de la semana calculada desde Firebase -->
+                                    <!-- Agrupación semanal -->
                                 </tbody>
                             </table>
                         </div>
@@ -396,46 +375,72 @@
                 <section id="secInventario" class="content-section admin-only">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                         
-                        <!-- Formulario para agregar producto (Lg: 4 cols) -->
-                        <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                            <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-plus text-emerald-500"></i> Agregar Producto
-                            </h3>
-                            <form id="productForm" class="space-y-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 mb-1">Nombre del Producto</label>
-                                    <input type="text" id="prodName" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ej. Silpacho Completo" required>
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
+                        <!-- Columna izquierda: Crear producto y Abastecer de mercadería (Lg: 4 cols) -->
+                        <div class="lg:col-span-4 space-y-6">
+                            <!-- FORMULARIO 1: AGREGAR NUEVO PRODUCTO -->
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-plus text-emerald-500"></i> Nuevo Producto
+                                </h3>
+                                <form id="productForm" class="space-y-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-500 mb-1">Precio (Bs.)</label>
-                                        <input type="number" step="0.10" id="prodPrice" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="18.00" required>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Nombre del Producto</label>
+                                        <input type="text" id="prodName" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ej. Coca Cola 2L" required>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Precio (Bs.)</label>
+                                            <input type="number" step="0.10" id="prodPrice" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="12.00" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Stock Inicial</label>
+                                            <input type="number" id="prodStock" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="10" required>
+                                        </div>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-500 mb-1">Stock Inicial</label>
-                                        <input type="number" id="prodStock" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="50" required>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label>
+                                        <select id="prodCategory" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                            <option value="Bebidas">Bebidas</option>
+                                            <option value="Platos">Platos</option>
+                                            <option value="Postres">Postres</option>
+                                            <option value="Otros">Otros</option>
+                                        </select>
                                     </div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label>
-                                    <select id="prodCategory" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                                        <option value="Platos">Platos</option>
-                                        <option value="Bebidas">Bebidas</option>
-                                        <option value="Postres">Postres</option>
-                                        <option value="Otros">Otros</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 mb-1">Imagen (Opcional)</label>
-                                    <input type="file" id="prodImage" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                                </div>
-                                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md">
-                                    <i class="fa-solid fa-floppy-disk"></i> Guardar en Inventario
-                                </button>
-                            </form>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Imagen (Opcional)</label>
+                                        <input type="file" id="prodImage" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                                    </div>
+                                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md">
+                                        <i class="fa-solid fa-floppy-disk"></i> Guardar Nuevo Producto
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- FORMULARIO 2: ABASTECER / INGRESAR MERCADERÍA (LO NUEVO) -->
+                            <div class="bg-white p-5 rounded-2xl border border-emerald-300 bg-emerald-50/20 shadow-sm">
+                                <h3 class="text-sm font-black text-emerald-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-truck-ramp-box text-emerald-600"></i> Abastecer Stock de Hoy
+                                </h3>
+                                <form id="restockForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Selecciona el Producto</label>
+                                        <select id="restockProductSelect" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-bold text-slate-700" required>
+                                            <option value="">-- Selecciona un Producto --</option>
+                                            <!-- Se llena dinámicamente -->
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Cantidad Nueva que llegó</label>
+                                        <input type="number" id="restockQuantity" min="1" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-slate-700" placeholder="Ej. 10" required>
+                                    </div>
+                                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md">
+                                        <i class="fa-solid fa-circle-plus"></i> Sumar al Stock actual
+                                    </button>
+                                </form>
+                            </div>
                         </div>
 
-                        <!-- Tabla de productos registrados en el sistema (Lg: 8 cols) -->
+                        <!-- Tabla de productos registrados (Lg: 8 cols) -->
                         <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">
                                 <i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Inventario Registrado
@@ -446,12 +451,12 @@
                                         <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
                                             <th class="py-2.5 px-4">Producto</th>
                                             <th class="py-2.5 px-4">Precio Unitario</th>
-                                            <th class="py-2.5 px-4">Stock</th>
+                                            <th class="py-2.5 px-4">Stock en Sistema</th>
                                             <th class="py-2.5 px-4 text-right">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody id="adminProductsTableBody" class="text-slate-600 divide-y divide-slate-100">
-                                        <!-- Los productos con opción de eliminación se renderizan aquí -->
+                                        <!-- Productos en inventario -->
                                     </tbody>
                                 </table>
                             </div>
@@ -464,23 +469,22 @@
         </main>
     </div>
 
-    <!-- MENSAJE TOAST DE COMPRA COMPLETADA -->
+    <!-- TOAST DE EXITO -->
     <div id="toastSuccess" class="bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800">
         <span class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-base">
             <i class="fa-solid fa-check"></i>
         </span>
         <div>
-            <h4 class="font-bold text-xs">¡Venta Guardada con éxito!</h4>
-            <p class="text-[10px] text-slate-400">El inventario se ha actualizado en Firebase.</p>
+            <h4 class="font-bold text-xs">¡Operación guardada con éxito!</h4>
+            <p class="text-[10px] text-slate-400">Firebase se ha actualizado al instante.</p>
         </div>
     </div>
 
-    <!-- SCRIPT DE FIREBASE (COMPATIBILIDAD INTEGRADA) -->
+    <!-- SCRIPTS FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     
-    <!-- Tu código script.js enlazado -->
     <script src="script.js"></script>
 </body>
 </html>
