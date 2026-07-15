@@ -3,468 +3,484 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roberto POS</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    
+    <title>Sistema de Inventario y Caja - Roberto</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f1f5f9;
-            min-height: 100vh;
-            margin: 0;
-            display: flex;
-        }
-
-        .content-section {
-            display: none !important;
-        }
-        
-        .active-section {
-            display: flex !important;
-            flex-direction: column;
-            gap: 16px;
-            width: 100%;
-        }
-
-        .main-container {
-            display: flex;
-            min-height: 100vh;
-            width: 100vw;
-            position: relative;
-        }
-
-        /* SIDEBAR RESPONSIVE */
-        .sidebar {
-            width: 260px;
-            background-color: #0f172a;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 24px 16px;
-            flex-shrink: 0;
-            height: 100vh;
-            position: fixed;
-            left: -260px;
-            top: 0;
-            z-index: 50;
-            transition: left 0.3s ease;
-        }
-
-        .sidebar.open {
-            left: 0;
-        }
-
-        /* AREA DE CONTENIDO CON SCROLL LIBRE */
-        .content-area {
-            flex-grow: 1;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            box-sizing: border-box;
-            background-color: #f8fafc;
-            width: 100%;
-            overflow-y: auto;
-        }
-
-        .pos-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            width: 100%;
-        }
-
-        .products-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background: #ffffff;
-            padding: 14px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 12px;
-            align-content: start;
-        }
-
-        /* TARJETA DE PRODUCTO */
+        /* Estilos personalizados para la interfaz */
+        .content-section { display: none; }
+        .active-section { display: block; }
         .product-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            background: white;
             border-radius: 12px;
-            padding: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.2s;
             position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 140px;
+            border: 1px solid #e2e8f0;
         }
-        
-        /* BOTÓN MAS OPTIMIZADO PARA MÓVILES */
-        .btn-add-fast {
-            background-color: #f97316;
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .prod-stock {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(15, 23, 42, 0.85);
             color: white;
-            font-size: 16px;
-            font-weight: 900;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 20px;
+        }
+        .prod-img {
+            height: 120px;
+            background: #f1f5f9;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-left: auto;
-            margin-top: 4px;
-            border: none;
-            cursor: pointer;
-            position: relative;
-            z-index: 10;
-            box-shadow: 0 2px 6px rgba(249, 115, 22, 0.4);
+            overflow: hidden;
         }
-        
-        .btn-add-fast:active {
-            transform: scale(0.85);
-        }
-
-        .prod-stock {
-            position: absolute;
-            top: 6px; left: 6px;
-            background: #e2e8f0; color: #334155;
-            font-size: 10px; font-weight: 700;
-            padding: 1px 5px; border-radius: 4px;
-        }
-        .prod-img { font-size: 20px; text-align: center; margin-top: 12px; }
-        .prod-details h4 { font-weight: 700; color: #1e293b; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* SECCIÓN FACTURACIÓN */
-        .billing-section {
+        .prod-img img {
             width: 100%;
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            height: 100%;
+            object-fit: cover;
+        }
+        .prod-details { padding: 10px; }
+        .prod-details h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .btn-add-fast {
+            background: #10b981;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: background 0.2s;
         }
-
-        .ticket-items {
-            margin-top: 10px;
-            margin-bottom: 10px;
-            border: 1px dashed #cbd5e1;
-            border-radius: 8px;
-            padding: 8px;
-            background: #f8fafc;
-        }
-        
+        .btn-add-fast:hover { background: #059669; }
         .ticket-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 4px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 0;
+            border-bottom: 1px dashed #cbd5e1;
         }
-
-        .ticket-item .item-qty {
-            color: #ef4444 !important;
-            font-weight: bold !important;
+        .btn-option {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.2s;
         }
-
-        button.active {
-            background-color: #f97316 !important;
-            color: white !important;
-            border-color: #f97316 !important;
+        .btn-option.active {
+            background: #0f172a;
+            color: white;
         }
-
-        .table-wrapper {
-            overflow-x: auto;
-            width: 100%;
+        /* Menú lateral responsivo */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
         }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        th { background-color: #f8fafc; color: #64748b; font-weight: 600; padding: 10px; text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
-
-        #sidebarOverlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.5);
-            z-index: 40;
-        }
-
-        @media (min-width: 768px) {
-            .sidebar {
-                position: relative;
-                left: 0 !important;
+        @media (max-width: 767px) {
+            #sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
             }
-            #btnToggleSidebar {
-                display: none !important;
-            }
-            #btnMobileLogout {
-                display: none !important;
-            }
-            .pos-layout {
-                flex-direction: row;
-                height: calc(100vh - 80px);
-                overflow: hidden;
-            }
-            .content-area {
-                height: 100vh;
-                overflow: hidden;
-            }
-            .billing-section, .products-section {
-                height: 100%;
-            }
-            .products-grid, .ticket-items {
-                overflow-y: auto;
+            #sidebar.open {
+                transform: translateX(0);
             }
         }
-
-        #loginOverlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #0f172a; display: flex; align-items: center; justify-content: center; z-index: 9999;
-        }
-
+        /* Notificación Toast */
         #toastSuccess {
-            position: fixed; top: 20px; right: 20px;
-            background-color: #10b981; color: white;
-            padding: 16px 24px; border-radius: 12px;
-            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
-            display: flex; align-items: center; gap: 12px; z-index: 10000;
-            transform: translateY(-100px); opacity: 0;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            transform: translateY(100px);
+            opacity: 0;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
         }
-        #toastSuccess.show { transform: translateY(0); opacity: 1; }
+        #toastSuccess.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 font-sans text-slate-800">
 
-    <div id="sidebarOverlay"></div>
-
-    <div id="toastSuccess">
-        <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-lg">
-            <i class="fa-solid fa-circle-check"></i>
-        </div>
-        <div>
-            <h4 class="font-bold text-sm">¡Factura Exitosa!</h4>
-            <p class="text-xs text-emerald-100">La comanda se ha guardado correctamente.</p>
-        </div>
-    </div>
-
-    <div id="loginOverlay">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm mx-4">
-            <h2 class="text-xl font-black text-slate-800 text-center mb-2">Iniciar Sesión</h2>
-            <form id="loginForm" class="space-y-4">
+    <!-- PANTALLA DE LOGIN (OVERLAY) -->
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="w-16 h-16 bg-emerald-500 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-emerald-200">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800">¡Hola, Roberto!</h2>
+            <p class="text-xs text-slate-500 mb-6 mt-1">Inicia sesión para comenzar a vender hoy</p>
+            
+            <form id="loginForm" class="space-y-4 text-left">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario</label>
-                    <input type="text" id="username" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Usuario</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="username" class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Tu usuario" required>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
-                    <input type="password" id="password" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Contraseña</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input type="password" id="password" class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="••••••••" required>
+                    </div>
                 </div>
-                <button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl text-sm">Ingresar al Sistema</button>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 mt-2">
+                    Ingresar al Sistema <i class="fa-solid fa-arrow-right"></i>
+                </button>
             </form>
         </div>
     </div>
 
-    <div class="main-container">
-        
-        <aside id="sidebar" class="sidebar">
+    <!-- CONTENEDOR PRINCIPAL DEL SISTEMA -->
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- OVERLAY DE SEGURIDAD (CELULARES) -->
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-40 hidden"></div>
+
+        <!-- BARRA LATERAL (SIDEBAR) -->
+        <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between h-full border-r border-slate-800 shrink-0">
             <div>
-                <div class="mb-6 px-2 flex justify-between items-center">
-                    <h1 class="text-2xl font-bold text-orange-500">Roberto <span class="text-white">POS</span></h1>
-                    <button id="btnCloseSidebar" class="text-white md:hidden text-xl"><i class="fa-solid fa-xmark"></i></button>
+                <!-- Encabezado de Sidebar -->
+                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-fire-burner"></i>
+                        </div>
+                        <span class="font-black text-white text-base tracking-wide">MI NEGOCIO</span>
+                    </div>
+                    <button id="btnCloseSidebar" class="md:hidden text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
                 </div>
-                <div class="flex items-center gap-3 bg-slate-800 p-3 rounded-xl mb-6">
-                    <div id="userAvatar" class="w-9 h-9 rounded-lg bg-orange-600 flex items-center justify-center font-bold text-base text-white">U</div>
+
+                <!-- Perfil de Usuario Logueado -->
+                <div class="p-4 border-b border-slate-800 flex items-center gap-3">
+                    <div id="userAvatar" class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">
+                        R
+                    </div>
                     <div>
-                        <h4 id="userProfileName" class="font-medium text-xs text-slate-200">Cargando...</h4>
-                        <span id="userRoleBadge" class="text-[10px] text-slate-400">Rol</span>
+                        <h4 id="userProfileName" class="font-bold text-white text-sm">Roberto</h4>
+                        <span id="userRoleBadge" class="bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-500/30">Cajero</span>
                     </div>
                 </div>
-                <nav class="space-y-1">
-                    <button class="menu-item active w-full flex items-center gap-3 px-4 py-2.5 bg-orange-600 rounded-xl text-white font-medium text-sm text-left" data-target="sectionCaja">
-                        <i class="fa-solid fa-cash-register w-4"></i> Caja POS
+
+                <!-- Menú de Navegación -->
+                <nav class="p-4 space-y-1">
+                    <button data-target="secPuntoVenta" class="menu-item active flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white [&.active]:shadow-lg [&.active]:shadow-emerald-900/30">
+                        <i class="fa-solid fa-cash-register"></i> Punto de Venta
                     </button>
-                    <button class="menu-item admin-only w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-medium text-sm text-left" data-target="sectionInventario">
-                        <i class="fa-solid fa-boxes-stacked w-4"></i> Inventario
+                    <button data-target="secHistorial" class="menu-item flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white">
+                        <i class="fa-solid fa-receipt"></i> Flujo & Arqueo
                     </button>
-                    <button class="menu-item admin-only w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-medium text-sm text-left" data-target="sectionReportes">
-                        <i class="fa-solid fa-chart-line w-4"></i> Rendimiento por Día
-                    </button>
-                    <button class="menu-item admin-only w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-medium text-sm text-left" data-target="sectionPersonal">
-                        <i class="fa-solid fa-user-plus w-4"></i> Crear Personal
+                    <button data-target="secInventario" class="menu-item admin-only flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white">
+                        <i class="fa-solid fa-boxes-stacked"></i> Administración
                     </button>
                 </nav>
             </div>
-            <button id="btnLogout" class="menu-item logout flex items-center gap-3 px-4 py-2.5 text-red-400 hover:bg-red-950/40 rounded-xl font-medium text-sm w-full text-left">
-                <i class="fa-solid fa-right-from-bracket w-4"></i> Salir del sistema
-            </button>
-        </aside>
 
-        <main class="content-area">
-            
-            <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                <div class="flex items-center gap-3">
-                    <button id="btnToggleSidebar" class="text-slate-800 text-xl md:hidden p-1 bg-white border border-slate-200 rounded-lg shadow-sm w-9 h-9 flex items-center justify-center"><i class="fa-solid fa-bars"></i></button>
-                    <h2 id="pageTitle" class="text-lg md:text-xl font-black text-slate-800">Caja POS</h2>
-                </div>
-                <button id="btnMobileLogout" class="md:hidden flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-xl font-bold text-xs border border-red-100">
-                    <i class="fa-solid fa-right-from-bracket"></i> Salir
+            <!-- Botón de Cerrar Sesión (Abajo) -->
+            <div class="p-4 border-t border-slate-800">
+                <button id="btnLogout" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
                 </button>
             </div>
+        </aside>
 
-            <div id="sectionCaja" class="content-section active-section">
-                <div class="pos-layout">
-                    <section class="products-section">
-                        <div class="relative w-full">
-                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-slate-400 text-xs"></i>
-                            <input type="text" id="searchInp" placeholder="Buscar producto..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none">
-                        </div>
-                        <div id="productsGrid" class="products-grid"></div>
-                    </section>
+        <!-- ÁREA DE CONTENIDO -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden">
 
-                    <section class="billing-section">
-                        <div>
-                            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                                <h2 class="font-bold text-slate-800 text-xs flex items-center gap-2 uppercase tracking-wider"><i class="fa-solid fa-receipt text-orange-600"></i> Facturación</h2>
-                                <button id="btnLimpiarOrden" class="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded-lg font-bold">Limpiar</button>
+            <!-- BARRA SUPERIOR (HEADER) -->
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
+                <div class="flex items-center gap-4">
+                    <button id="btnToggleSidebar" class="md:hidden text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <h2 id="pageTitle" class="text-xl font-black text-slate-800">Punto de Venta</h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-400 font-medium">Estado del Servidor:</span>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase Online
+                    </span>
+                </div>
+            </header>
+
+            <!-- SECCIONES DINÁMICAS -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6">
+
+                <!-- 1. SECCIÓN: PUNTO DE VENTA -->
+                <section id="secPuntoVenta" class="content-section active-section">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
+                        
+                        <!-- Columna de Productos (Lg: 8 cols) -->
+                        <div class="lg:col-span-8 flex flex-col gap-4">
+                            <!-- Barra de búsqueda -->
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </span>
+                                <input type="text" id="searchInp" class="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm" placeholder="Buscar producto por nombre...">
                             </div>
-                            <div class="mt-2">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase">Entrega</span>
-                                <div class="grid grid-cols-2 gap-2 mt-1">
-                                    <button id="btnServMesa" class="active flex items-center justify-center gap-2 py-1.5 border border-slate-200 rounded-xl text-xs"><i class="fa-solid fa-chair"></i> Mesa</button>
-                                    <button id="btnServLlevar" class="flex items-center justify-center gap-2 py-1.5 border border-slate-200 rounded-xl text-xs"><i class="fa-solid fa-bag-shopping"></i> Llevar</button>
+
+                            <!-- Grid de Productos -->
+                            <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                <!-- Las tarjetas de productos se renderizan dinámicamente aquí -->
+                            </div>
+                        </div>
+
+                        <!-- Columna de Comanda / Ticket (Lg: 4 cols) -->
+                        <div class="lg:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col max-h-[600px]">
+                            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                                <h3 class="font-black text-slate-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-file-invoice text-emerald-500"></i> Orden Actual
+                                </h3>
+                                <button id="btnLimpiarOrden" class="text-xs text-red-500 hover:underline font-bold">Limpiar todo</button>
+                            </div>
+
+                            <!-- Lista de items en el carrito -->
+                            <div id="ticketList" class="flex-1 overflow-y-auto min-h-[200px] max-h-[300px] my-3 pr-1">
+                                <!-- Los productos agregados aparecerán aquí -->
+                            </div>
+
+                            <!-- Opciones de Servicio y Pago -->
+                            <div class="space-y-3 pt-3 border-t border-slate-200">
+                                <!-- Servicio -->
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Servicio</label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button id="btnServMesa" class="btn-option active"><i class="fa-solid fa-chair mr-1"></i> Para Mesa</button>
+                                        <button id="btnServLlevar" class="btn-option"><i class="fa-solid fa-bag-shopping mr-1"></i> Para Llevar</button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="mt-2">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase">Pago</span>
-                                <div class="grid grid-cols-2 gap-2 mt-1">
-                                    <button id="btnPayEfectivo" class="active flex items-center justify-center gap-2 py-1.5 border border-slate-200 rounded-xl text-xs"><i class="fa-solid fa-money-bill-wave"></i> Efectivo</button>
-                                    <button id="btnPayQR" class="flex items-center justify-center gap-2 py-1.5 border border-slate-200 rounded-xl text-xs"><i class="fa-solid fa-qrcode"></i> QR</button>
+
+                                <!-- Método de Pago -->
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Método de Pago</label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button id="btnPayEfectivo" class="btn-option active"><i class="fa-solid fa-money-bill-1-wave mr-1"></i> Efectivo</button>
+                                        <button id="btnPayQR" class="btn-option"><i class="fa-solid fa-qrcode mr-1"></i> Código QR</button>
+                                    </div>
                                 </div>
+
+                                <!-- Total y Botón de Pago -->
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between mt-2">
+                                    <span class="text-xs font-bold text-slate-500">Total a Pagar:</span>
+                                    <span id="txtTotal" class="text-xl font-black text-slate-900">0.00 Bs.</span>
+                                </div>
+
+                                <button id="btnPay" disabled class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-circle-check"></i> Completar Venta
+                                </button>
                             </div>
                         </div>
 
-                        <div id="ticketList" class="ticket-items"></div>
+                    </div>
+                </section>
 
-                        <div class="pt-2 border-t border-slate-100 space-y-2">
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs font-medium text-slate-500">Total:</span>
-                                <span id="txtTotal" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                <!-- 2. SECCIÓN: FLUJO DE HOY Y ARQUEO DE CAJA -->
+                <section id="secHistorial" class="content-section">
+                    <!-- Tarjetas informativas superiores (Hoy) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xl"><i class="fa-solid fa-vault"></i></div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 block uppercase">Mis Ventas de Hoy</span>
+                                <span id="lblMiTotalHoy" class="text-lg font-black text-slate-800">0.00 Bs.</span>
                             </div>
-                            <button id="btnPay" disabled class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 text-sm shadow-md">
-                                <i class="fa-solid fa-print"></i> Procesar Venta / Comanda
-                            </button>
                         </div>
-                    </section>
-                </div>
-            </div>
-
-            <div id="sectionReportes" class="content-section flex-col gap-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase">Mis Ventas</h4>
-                        <div class="flex justify-between items-center mt-1">
-                            <p id="lblMiTotalHoy" class="text-xl font-black text-slate-800">0.00 Bs.</p>
-                            <button id="btnArqueoCaja" class="bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-md">Arqueo</button>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-xl"><i class="fa-solid fa-chart-line"></i></div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 block uppercase">Ventas Globales Hoy</span>
+                                <span id="lblVentasDia" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center text-green-600 text-xl"><i class="fa-solid fa-money-bill-wave"></i></div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 block uppercase">Efectivo en Caja Hoy</span>
+                                <span id="lblEfecHoy" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-cyan-50 rounded-lg flex items-center justify-center text-cyan-600 text-xl"><i class="fa-solid fa-qrcode"></i></div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 block uppercase">Cobros por QR Hoy</span>
+                                <span id="lblQrHoy" class="text-lg font-black text-slate-800">0.00 Bs.</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-emerald-500">
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase">Globales (Hoy)</h4>
-                        <p id="lblVentasDia" class="text-xl font-black text-slate-800">0.00 Bs.</p>
-                        <span class="text-[10px] text-slate-500">Efec: <span id="lblEfecHoy">0</span> | QR: <span id="lblQrHoy">0</span></span>
+
+                    <!-- TABLA 1: TU AMADO FLUJO DE HOY EN TIEMPO REAL -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Flujo Diario en Tiempo Real
+                            </h3>
+                            <span class="text-xs text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full font-bold">Mostrador</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[11px]">
+                                        <th class="py-2.5 px-3">Hora</th>
+                                        <th class="py-2.5 px-3">Cajero</th>
+                                        <th class="py-2.5 px-3">Productos</th>
+                                        <th class="py-2.5 px-3">Servicio</th>
+                                        <th class="py-2.5 px-3">Pago</th>
+                                        <th class="py-2.5 px-3 text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableCajeroPersonalBody" class="text-slate-600 text-xs divide-y divide-slate-100">
+                                    <!-- Las transacciones de hoy aparecerán aquí al instante -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase">Histórico</h4>
-                        <p id="lblVentasMes" class="text-xl font-black text-slate-800">0.00 Bs.</p>
-                        <span class="text-[10px] text-slate-500">Efec: <span id="lblEfecMes">0</span> | QR: <span id="lblQrMes">0</span></span>
+
+                    <!-- TABLA 2: ARQUEO DE CAJA SEMANAL (CÁLCULOS DE EFECTIVO VS QR) -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-calculator text-emerald-500"></i> Arqueo de Caja & Detalle de Ventas
+                            </h3>
+                            <span class="text-xs text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-bold">Cuentas Claras</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[11px]">
+                                        <th class="py-3 px-4">Día</th>
+                                        <th class="py-3 px-4">Detalle de Ventas (Cantidades)</th>
+                                        <th class="py-3 px-4">Efectivo Físico esperado</th>
+                                        <th class="py-3 px-4">Banco (Código QR)</th>
+                                        <th class="py-3 px-4 text-right">Monto Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableArqueoCajaBody" class="text-slate-600 text-xs divide-y divide-slate-100">
+                                    <!-- Agrupación por días de la semana calculada desde Firebase -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <div class="bg-white p-4 rounded-xl shadow-sm flex flex-col">
-                    <h3 class="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-2 pb-2 border-b border-slate-100">Flujo de Hoy</h3>
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr><th>HORA</th><th>CAJERO</th><th>ITEMS</th><th>SERVICIO</th><th>PAGO</th><th style="text-align:right;">MONTO</th></tr>
-                            </thead>
-                            <tbody id="tableCajeroPersonalBody"></tbody>
-                        </table>
+                <!-- 3. SECCIÓN: INVENTARIO (ADMINISTRACIÓN) -->
+                <section id="secInventario" class="content-section admin-only">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        
+                        <!-- Formulario para agregar producto (Lg: 4 cols) -->
+                        <div class="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-plus text-emerald-500"></i> Agregar Producto
+                            </h3>
+                            <form id="productForm" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Nombre del Producto</label>
+                                    <input type="text" id="prodName" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ej. Silpacho Completo" required>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Precio (Bs.)</label>
+                                        <input type="number" step="0.10" id="prodPrice" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="18.00" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Stock Inicial</label>
+                                        <input type="number" id="prodStock" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="50" required>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label>
+                                    <select id="prodCategory" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                        <option value="Platos">Platos</option>
+                                        <option value="Bebidas">Bebidas</option>
+                                        <option value="Postres">Postres</option>
+                                        <option value="Otros">Otros</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Imagen (Opcional)</label>
+                                    <input type="file" id="prodImage" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                                </div>
+                                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md">
+                                    <i class="fa-solid fa-floppy-disk"></i> Guardar en Inventario
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Tabla de productos registrados en el sistema (Lg: 8 cols) -->
+                        <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">
+                                <i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Inventario Registrado
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-left text-xs">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
+                                            <th class="py-2.5 px-4">Producto</th>
+                                            <th class="py-2.5 px-4">Precio Unitario</th>
+                                            <th class="py-2.5 px-4">Stock</th>
+                                            <th class="py-2.5 px-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminProductsTableBody" class="text-slate-600 divide-y divide-slate-100">
+                                        <!-- Los productos con opción de eliminación se renderizan aquí -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <div id="sectionInventario" class="content-section flex-col gap-4">
-                <div class="bg-white p-4 rounded-xl shadow-sm">
-                    <form id="productForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 items-end">
-                        <input type="text" id="prodName" placeholder="Nombre" required class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                        <input type="number" id="prodPrice" step="0.01" placeholder="Precio" required class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                        <input type="number" id="prodStock" placeholder="Stock" required class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                        <select id="prodCategory" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                            <option value="Platos">Platos</option>
-                            <option value="Bebidas">Bebidas</option>
-                        </select>
-                        <div class="flex gap-2 items-center">
-                            <input type="file" id="prodImgFile" class="text-[10px] w-full">
-                            <button type="submit" class="bg-orange-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs">Agregar</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm table-wrapper">
-                    <table>
-                        <thead>
-                            <tr><th>IMAGEN</th><th>PRODUCTO</th><th>CATEGORÍA</th><th>PRECIO</th><th>STOCK</th><th class="text-center">ACCIONES</th></tr>
-                        </thead>
-                        <tbody id="tableInventoryBody"></tbody>
-                    </table>
-                </div>
             </div>
-
-            <div id="sectionPersonal" class="content-section flex-col gap-4">
-                <div class="bg-white p-5 rounded-xl shadow-sm w-full max-w-sm">
-                    <h3 class="font-bold text-base text-slate-800 mb-3">Registrar Personal</h3>
-                    <form id="userForm" class="space-y-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Usuario</label>
-                            <input type="text" id="newUsername" required class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Contraseña</label>
-                            <input type="password" id="newPassword" required class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rol</label>
-                            <select id="newUserRole" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                                <option value="cajero">Cajero</option>
-                                <option value="admin">Administrador</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="bg-orange-600 text-white font-bold px-4 py-2 rounded-lg text-xs w-full">Guardar</button>
-                    </form>
-                </div>
-            </div>
-
         </main>
     </div>
 
+    <!-- MENSAJE TOAST DE COMPRA COMPLETADA -->
+    <div id="toastSuccess" class="bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800">
+        <span class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-base">
+            <i class="fa-solid fa-check"></i>
+        </span>
+        <div>
+            <h4 class="font-bold text-xs">¡Venta Guardada con éxito!</h4>
+            <p class="text-[10px] text-slate-400">El inventario se ha actualizado en Firebase.</p>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE FIREBASE (COMPATIBILIDAD INTEGRADA) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    
+    <!-- Tu código script.js enlazado -->
     <script src="script.js"></script>
 </body>
 </html>

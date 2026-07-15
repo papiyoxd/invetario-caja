@@ -139,7 +139,7 @@ if (btnMobileLogout) {
 }
 
 // ==========================================
-// GESTIÓN Y RENDERIZADO DE PRODUCTOS (CON SEGURIDAD ANTI-UNDEFINED)
+// GESTIÓN Y RENDERIZADO DE PRODUCTOS (SEGURIDAD ANTI-UNDEFINED)
 // ==========================================
 async function cargarProductos() {
     try {
@@ -150,7 +150,7 @@ async function cargarProductos() {
             snapshot.forEach(doc => {
                 const data = doc.data();
                 
-                // FILTRO DE SEGURIDAD: Si no tiene nombre o precio válido, lo ignoramos para que no aparezca "undefined"
+                // Ignorar productos rotos de la base de datos
                 if (!data.name || data.price === undefined) {
                     return; 
                 }
@@ -160,7 +160,6 @@ async function cargarProductos() {
                 renderizarTarjetaProducto(prod);
             });
             
-            // Actualizar tabla de inventario administrativo si existe
             renderizarTablaAdministracionInventario();
         });
     } catch (error) {
@@ -201,7 +200,7 @@ searchInp.addEventListener('input', () => {
 });
 
 // ==========================================
-// FUNCIÓN PARA ELIMINAR PRODUCTOS (ADMIN)
+// ELIMINAR PRODUCTOS (ADMIN)
 // ==========================================
 window.eliminarProductoDelSistema = async function(id, nombre) {
     if (confirm(`¿Estás seguro de que quieres eliminar "${nombre}" del inventario?`)) {
@@ -215,10 +214,9 @@ window.eliminarProductoDelSistema = async function(id, nombre) {
     }
 };
 
-// Generar lista de productos con botón de eliminar en la sección administrativa
 function renderizarTablaAdministracionInventario() {
     const adminTableBody = document.getElementById('adminProductsTableBody');
-    if (!adminTableBody) return; // Si no tienes este elemento en tu HTML, no pasa nada
+    if (!adminTableBody) return;
 
     adminTableBody.innerHTML = '';
     productosGlobales.forEach(prod => {
@@ -238,7 +236,7 @@ function renderizarTablaAdministracionInventario() {
 }
 
 // ==========================================
-// SECCIÓN ADMINISTRADOR: AGREGAR NUEVOS PRODUCTOS
+// ADMINISTRADOR: FORMULARIO DE PRODUCTOS
 // ==========================================
 function inicializarFormularioProductos() {
     const productForm = document.getElementById('productForm');
@@ -397,7 +395,6 @@ btnPay.addEventListener('click', async () => {
     btnPay.disabled = true;
     let totalFactura = 0;
     
-    // Guardamos los items en formato detallado array para análisis posterior estructurado
     const itemsArray = carrito.map(i => {
         totalFactura += (i.price * i.cantidad);
         return { name: i.name, cantidad: i.cantidad };
@@ -409,7 +406,7 @@ btnPay.addEventListener('click', async () => {
         fecha: firebase.firestore.Timestamp.now(),
         cajero: currentUser.user,
         items: itemsResumenText,
-        itemsDetallados: itemsArray, // Guardado estructurado
+        itemsDetallados: itemsArray, 
         servicio: servicioSeleccionado,
         pago: pagoSeleccionado,
         monto: totalFactura
@@ -442,12 +439,14 @@ btnPay.addEventListener('click', async () => {
 });
 
 // ==========================================
-// RENDIMIENTO DIARIO PROFESIONAL (AGRUPADO POR DÍA)
+// EL REGRESO DEL FLUJO DE HOY Y ARQUEO DE CAJA
 // ==========================================
 function cargarFlujoHoy() {
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    
-    // Obtener las ventas de los últimos 7 días
+    const inicioHoy = new Date();
+    inicioHoy.setHours(0,0,0,0);
+
+    // Consultamos las ventas de los últimos 7 días para agrupar tu Arqueo Semanal
     const haceSieteDias = new Date();
     haceSieteDias.setDate(haceSieteDias.getDate() - 7);
     haceSieteDias.setHours(0,0,0,0);
@@ -456,21 +455,21 @@ function cargarFlujoHoy() {
       .where('fecha', '>=', haceSieteDias)
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
-          const tbody = document.getElementById('tableCajeroPersonalBody');
-          if(!tbody) return;
-          tbody.innerHTML = '';
+          
+          // 1. RENDERIZAR TU AMADO FLUJO EN TIEMPO REAL (SOLO VENTAS DE HOY)
+          const tbodyFlujo = document.getElementById('tableCajeroPersonalBody');
+          if (tbodyFlujo) {
+              tbodyFlujo.innerHTML = '';
+          }
 
           let miTotalHoy = 0;
           let globalDia = 0;
           let efecHoy = 0, qrHoy = 0;
-          
-          const inicioHoy = new Date();
-          inicioHoy.setHours(0,0,0,0);
 
-          // Estructura de agrupación diaria profesional
-          const reporteSemanario = {};
+          // Estructura para agrupar tus arqueos semanales de forma ultra-profesional
+          const arqueoSemanal = {};
           diasSemana.forEach(d => {
-              reporteSemanario[d] = { total: 0, productos: {} };
+              arqueoSemanal[d] = { total: 0, efectivo: 0, qr: 0, productos: {} };
           });
 
           snapshot.forEach(doc => {
@@ -478,36 +477,24 @@ function cargarFlujoHoy() {
               const fechaVenta = v.fecha ? v.fecha.toDate() : new Date();
               const nombreDia = diasSemana[fechaVenta.getDay()];
 
-              // 1. Acumular totales para el reporte diario agrupado
+              // --- A) Agrupación para el Arqueo Semanal ---
               if (v.monto) {
-                  reporteSemanario[nombreDia].total += v.monto;
-                  
-                  // Desglosar los productos de la venta
+                  arqueoSemanal[nombreDia].total += v.monto;
+                  if (v.pago === 'Efectivo') arqueoSemanal[nombreDia].efectivo += v.monto;
+                  if (v.pago === 'QR') arqueoSemanal[nombreDia].qr += v.monto;
+
+                  // Desglose de productos
                   if (v.itemsDetallados && Array.isArray(v.itemsDetallados)) {
                       v.itemsDetallados.forEach(it => {
-                          if (!reporteSemanario[nombreDia].productos[it.name]) {
-                              reporteSemanario[nombreDia].productos[it.name] = 0;
+                          if (!arqueoSemanal[nombreDia].productos[it.name]) {
+                              arqueoSemanal[nombreDia].productos[it.name] = 0;
                           }
-                          reporteSemanario[nombreDia].productos[it.name] += it.cantidad;
-                      });
-                  } else {
-                      // Fallback si viene en formato texto antiguo
-                      const itemsSplit = v.items.split(', ');
-                      itemsSplit.forEach(itemStr => {
-                          const match = itemStr.match(/(.+) \(x(\d+)\)/);
-                          if (match) {
-                              const nombreProd = match[1];
-                              const cant = parseInt(match[2]);
-                              if (!reporteSemanario[nombreDia].productos[nombreProd]) {
-                                  reporteSemanario[nombreDia].productos[nombreProd] = 0;
-                              }
-                              reporteSemanario[nombreDia].productos[nombreProd] += cant;
-                          }
+                          arqueoSemanal[nombreDia].productos[it.name] += it.cantidad;
                       });
                   }
               }
 
-              // 2. Totales específicos para la vista rápida de "HOY"
+              // --- B) Flujo de Hoy en Tiempo Real ---
               if (fechaVenta >= inicioHoy) {
                   globalDia += v.monto;
                   if (v.cajero === currentUser.user) {
@@ -515,33 +502,60 @@ function cargarFlujoHoy() {
                   }
                   if (v.pago === 'Efectivo') efecHoy += v.monto;
                   if (v.pago === 'QR') qrHoy += v.monto;
-              }
-          });
 
-          // 3. Renderizar en la tabla de forma organizada y elegante por día
-          diasSemana.forEach(dia => {
-              const datosDia = reporteSemanario[dia];
-              if (datosDia.total > 0) {
-                  
-                  // Generar el texto detallado (ejemplo: "5 silpacho, 3 soda")
-                  const detalleArray = [];
-                  for (const [prodName, cant] of Object.entries(datosDia.productos)) {
-                      detalleArray.push(`${cant} ${prodName}`);
+                  const hora = v.fecha ? v.fecha.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+
+                  // Insertamos la fila en tu tabla tradicional de Flujo Diario
+                  if (tbodyFlujo) {
+                      const tr = document.createElement('tr');
+                      tr.innerHTML = `
+                          <td class="py-2.5 px-3"><span class="font-bold text-slate-600">${hora}</span></td>
+                          <td class="py-2.5 px-3 text-slate-700">${v.cajero}</td>
+                          <td class="py-2.5 px-3 max-w-[150px] truncate text-slate-600 font-medium">${v.items}</td>
+                          <td class="py-2.5 px-3">
+                              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${v.servicio === 'Mesa' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}">
+                                  ${v.servicio}
+                              </span>
+                          </td>
+                          <td class="py-2.5 px-3">
+                              <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${v.pago === 'QR' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}">
+                                  ${v.pago}
+                              </span>
+                          </td>
+                          <td class="py-2.5 px-3 text-right font-black text-slate-800">${v.monto.toFixed(2)} Bs.</td>
+                      `;
+                      tbodyFlujo.appendChild(tr);
                   }
-                  const detalleTexto = detalleArray.join(', ');
-
-                  const tr = document.createElement('tr');
-                  tr.className = "hover:bg-slate-50 transition-colors border-b";
-                  tr.innerHTML = `
-                      <td class="py-3 px-4 font-bold text-slate-800">${dia}</td>
-                      <td class="py-3 px-4 text-xs text-slate-600 max-w-[250px] truncate" title="${detalleTexto}">${detalleTexto}</td>
-                      <td class="py-3 px-4 text-right font-black text-emerald-600 text-sm">${datosDia.total.toFixed(2)} Bs.</td>
-                  `;
-                  tbody.appendChild(tr);
               }
           });
 
-          // Actualizar etiquetas de resumen rápido en la UI
+          // 2. RENDERIZAR LA NUEVA TABLA DE ARQUEO DE CAJA
+          const tbodyArqueo = document.getElementById('tableArqueoCajaBody');
+          if (tbodyArqueo) {
+              tbodyArqueo.innerHTML = '';
+              diasSemana.forEach(dia => {
+                  const datos = arqueoSemanal[dia];
+                  if (datos.total > 0) {
+                      // Generar detalle de los productos vendidos
+                      const detalleProd = Object.entries(datos.productos)
+                          .map(([name, cant]) => `${cant} ${name}`)
+                          .join(', ');
+
+                      const tr = document.createElement('tr');
+                      tr.className = "hover:bg-slate-50 border-b";
+                      tr.innerHTML = `
+                          <td class="py-3 px-4 font-bold text-slate-800">${dia}</td>
+                          <td class="py-3 px-4 text-xs text-slate-500 max-w-[200px] truncate" title="${detalleProd}">${detalleProd}</td>
+                          <td class="py-3 px-4 font-bold text-emerald-600">${datos.efectivo.toFixed(2)} Bs.</td>
+                          <td class="py-3 px-4 font-bold text-blue-600">${datos.qr.toFixed(2)} Bs.</td>
+                          <td class="py-3 px-4 text-right font-black text-slate-900">${datos.total.toFixed(2)} Bs.</td>
+                      `;
+                      tbodyArqueo.appendChild(tr);
+                  }
+              });
+          }
+
+          // Actualizar contadores superiores de hoy
           if(document.getElementById('lblMiTotalHoy')) document.getElementById('lblMiTotalHoy').textContent = `${miTotalHoy.toFixed(2)} Bs.`;
           if(document.getElementById('lblVentasDia')) document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
           if(document.getElementById('lblEfecHoy')) document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
