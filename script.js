@@ -50,13 +50,6 @@ const panelVuelto = document.getElementById('panelCalculadoraVuelto');
 const inpMontoPago = document.getElementById('inpMontoPago');
 const lblVueltoCalculado = document.getElementById('lblVueltoCalculado');
 
-// Variables de Modal QR
-const modalQR = document.getElementById('modalQR');
-const imgCodigoQR = document.getElementById('imgCodigoQR');
-const lblMontoTotalQR = document.getElementById('lblMontoTotalQR');
-const btnConfirmarPagoQR = document.getElementById('btnConfirmarPagoQR');
-const btnCancelarPagoQR = document.getElementById('btnCancelarPagoQR');
-
 // ==========================================
 // CONTROL DE NAVEGACIÓN
 // ==========================================
@@ -170,8 +163,6 @@ async function cargarProductos() {
 
 window.filtrarCategoria = function(cat) {
     categoriaFiltrada = cat;
-    
-    // Cambiar estilos de los botones de filtro
     document.querySelectorAll('.cat-filter-btn').forEach(btn => {
         if (btn.textContent.trim() === cat) {
             btn.classList.add('bg-slate-900', 'text-white');
@@ -181,7 +172,6 @@ window.filtrarCategoria = function(cat) {
             btn.classList.add('bg-white', 'text-slate-600', 'border');
         }
     });
-
     filtrarYAplicarProductos();
 };
 
@@ -202,8 +192,6 @@ function filtrarYAplicarProductos() {
 function renderizarTarjetaProducto(prod) {
     const card = document.createElement('div');
     card.className = 'product-card';
-    
-    // Alerta visual de stock bajo (3 unidades o menos)
     const claseStock = prod.stock <= 3 ? 'stock-bajo' : 'stock-alto';
 
     const imgContent = prod.imageUrl 
@@ -273,7 +261,6 @@ function inicializarFormularioProductos() {
 
     cleanProductForm.addEventListener('submit', async (e) => {
         e.preventDefault(); 
-
         const btnSubmit = cleanProductForm.querySelector('button[type="submit"]');
         if (btnSubmit) btnSubmit.disabled = true;
 
@@ -341,7 +328,6 @@ function inicializarFormularioAbastecimiento() {
 
     cleanForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const prodId = document.getElementById('restockProductSelect').value;
         const cantAAgregar = parseInt(document.getElementById('restockQuantity').value);
 
@@ -450,10 +436,10 @@ document.getElementById('btnPayQR').addEventListener('click', function() {
     panelVuelto.style.display = "none";
 });
 
-// CALCULADORA DE VUELTO
+// CALCULADORA DE VUELTO COMPATIBLE CON MÓVILES (EVENTO 'INPUT')
 function calcularVuelto() {
-    const totalPagar = parseFloat(txtTotal.textContent);
-    const montoPaga = parseFloat(inpMontoPago.value);
+    const totalPagar = parseFloat(txtTotal.textContent) || 0;
+    const montoPaga = parseFloat(inpMontoPago.value) || 0;
 
     if (isNaN(montoPaga) || montoPaga < totalPagar) {
         lblVueltoCalculado.textContent = "0.00 Bs.";
@@ -467,34 +453,13 @@ function calcularVuelto() {
 inpMontoPago.addEventListener('input', calcularVuelto);
 
 // ==========================================
-// ENVIAR / PROCESAR COMANDA (CON TU QR BCP REAL)
+// ENVIAR / PROCESAR COMANDA (FACTURACIÓN DIRECTA)
 // ==========================================
 btnPay.addEventListener('click', () => {
     if (carrito.length === 0) return;
-
-    const total = parseFloat(txtTotal.textContent);
-
-    if (pagoSeleccionado === "QR") {
-        // Cargamos tu imagen real que guardaste en el proyecto
-        imgCodigoQR.src = "qr-bcp.jpeg"; 
-        lblMontoTotalQR.textContent = `${total.toFixed(2)} Bs.`;
-        
-        modalQR.classList.remove('hidden');
-        modalQR.classList.add('flex');
-    } else {
-        procesarVentaEnFirebase();
-    }
-});
-
-btnConfirmarPagoQR.addEventListener('click', () => {
-    modalQR.classList.remove('flex');
-    modalQR.classList.add('hidden');
+    
+    // Tanto Efectivo como QR se envían directo a Firebase sin popups de imágenes
     procesarVentaEnFirebase();
-});
-
-btnCancelarPagoQR.addEventListener('click', () => {
-    modalQR.classList.remove('flex');
-    modalQR.classList.add('hidden');
 });
 
 async function procesarVentaEnFirebase() {
@@ -521,6 +486,7 @@ async function procesarVentaEnFirebase() {
     try {
         await db.collection('ventas').add(nuevaVenta);
 
+        // Descontar del stock
         for (const item of carrito) {
             const prodRef = db.collection('productos').doc(item.id);
             await db.runTransaction(async (transaction) => {
