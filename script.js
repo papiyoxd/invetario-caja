@@ -508,7 +508,7 @@ async function procesarVentaEnFirebase() {
 }
 
 // ==========================================
-// FLUJO HISTORIAL Y ARQUEO DE CAJA + REPORTE MENSUAL (SaaS)
+// FLUJO HISTORIAL Y ARQUEO DE CAJA + REPORTE MENSUAL OPTIMIZADO (SaaS)
 // ==========================================
 function cargarFlujoHoy() {
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -521,8 +521,12 @@ function cargarFlujoHoy() {
     haceSieteDias.setDate(haceSieteDias.getDate() - 7);
     haceSieteDias.setHours(0,0,0,0);
 
-    // Para reportes mensuales leemos todo el historial de ventas
+    // OPTIMIZACIÓN SaaS: Para evitar leer miles de documentos antiguos del historial,
+    // filtramos para traer únicamente las ventas del año en curso.
+    const inicioAnioCurso = new Date(new Date().getFullYear(), 0, 1);
+
     db.collection('ventas')
+      .where('fecha', '>=', firebase.firestore.Timestamp.fromDate(inicioAnioCurso))
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
           
@@ -541,33 +545,45 @@ function cargarFlujoHoy() {
 
           snapshot.forEach(doc => {
               const v = doc.data();
-              const fechaVenta = v.fecha ? v.fecha.toDate() : new Date();
-              const nombreDia = diasSemana[fechaVenta.getDay()];
               
-              // 1. Lógica SaaS: Agrupación y suma Mensual
+              // Validación segura de fecha
+              let fechaVenta;
+              if (v.fecha && typeof v.fecha.toDate === 'function') {
+                  fechaVenta = v.fecha.toDate();
+              } else if (v.fecha instanceof Date) {
+                  fechaVenta = v.fecha;
+              } else {
+                  fechaVenta = new Date();
+              }
+
+              const nombreDia = diasSemana[fechaVenta.getDay()];
               const mesNombre = mesesAnio[fechaVenta.getMonth()];
               const anioNumero = fechaVenta.getFullYear();
               const llaveMes = `${mesNombre} ${anioNumero}`; // Ej: "Julio 2026"
 
-              if (v.monto) {
-                  // Sumar al reporte mensual general
+              const montoValido = parseFloat(v.monto) || 0;
+
+              if (montoValido > 0) {
+                  // 1. Lógica SaaS: Agrupación y suma Mensual (Acotado al año en curso gracias al filtro)
                   if (!acumuladoMensual[llaveMes]) {
                       acumuladoMensual[llaveMes] = 0;
                   }
-                  acumuladoMensual[llaveMes] += v.monto;
+                  acumuladoMensual[llaveMes] += montoValido;
 
                   // Guardar datos solo de los últimos 7 días para el arqueo diario
                   if (fechaVenta >= haceSieteDias) {
-                      arqueoSemanal[nombreDia].total += v.monto;
-                      if (v.pago === 'Efectivo') arqueoSemanal[nombreDia].efectivo += v.monto;
-                      if (v.pago === 'QR') arqueoSemanal[nombreDia].qr += v.monto;
+                      arqueoSemanal[nombreDia].total += montoValido;
+                      if (v.pago === 'Efectivo') arqueoSemanal[nombreDia].efectivo += montoValido;
+                      if (v.pago === 'QR') arqueoSemanal[nombreDia].qr += montoValido;
 
                       if (v.itemsDetallados && Array.isArray(v.itemsDetallados)) {
                           v.itemsDetallados.forEach(it => {
-                              if (!arqueoSemanal[nombreDia].productos[it.name]) {
-                                  arqueoSemanal[nombreDia].productos[it.name] = 0;
+                              if (it.name) {
+                                  if (!arqueoSemanal[nombreDia].productos[it.name]) {
+                                      arqueoSemanal[nombreDia].productos[it.name] = 0;
+                                  }
+                                  arqueoSemanal[nombreDia].productos[it.name] += (parseInt(it.cantidad) || 0);
                               }
-                              arqueoSemanal[nombreDia].productos[it.name] += it.cantidad;
                           });
                       }
                   }
@@ -575,30 +591,30 @@ function cargarFlujoHoy() {
 
               // 2. Filtrado exclusivo de hoy para las tarjetas de control del cajero
               if (fechaVenta >= inicioHoy) {
-                  globalDia += v.monto;
-                  if (v.cajero === currentUser.user) miTotalHoy += v.monto;
-                  if (v.pago === 'Efectivo') efecHoy += v.monto;
-                  if (v.pago === 'QR') qrHoy += v.monto;
+                  globalDia += montoValido;
+                  if (v.cajero === currentUser.user) miTotalHoy += montoValido;
+                  if (v.pago === 'Efectivo') efecHoy += montoValido;
+                  if (v.pago === 'QR') qrHoy += montoValido;
 
-                  const hora = v.fecha ? v.fecha.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                  const hora = fechaVenta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
                   if (tbodyFlujo) {
                       const tr = document.createElement('tr');
                       tr.innerHTML = `
                           <td class="py-2 px-3"><span class="font-bold text-slate-600">${hora}</span></td>
-                          <td class="py-2 px-3 text-slate-700">${v.cajero}</td>
-                          <td class="py-2 px-3 max-w-[150px] truncate text-slate-600 font-medium">${v.items}</td>
+                          <td class="py-2 px-3 text-slate-700">${v.cajero || 'Sin cajero'}</td>
+                          <td class="py-2 px-3 max-w-[150px] truncate text-slate-600 font-medium">${v.items || ''}</td>
                           <td class="py-2 px-3">
                               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${v.servicio === 'Mesa' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}">
-                                  ${v.servicio}
+                                  ${v.servicio || 'Mesa'}
                               </span>
                           </td>
                           <td class="py-2 px-3">
                               <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${v.pago === 'QR' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}">
-                                  ${v.pago}
+                                  ${v.pago || 'Efectivo'}
                               </span>
                           </td>
-                          <td class="py-2 px-3 text-right font-black text-slate-800">${v.monto.toFixed(2)} Bs.</td>
+                          <td class="py-2 px-3 text-right font-black text-slate-800">${montoValido.toFixed(2)} Bs.</td>
                       `;
                       tbodyFlujo.appendChild(tr);
                   }
@@ -612,7 +628,7 @@ function cargarFlujoHoy() {
               const mesesOrdenados = Object.keys(acumuladoMensual);
 
               if (mesesOrdenados.length === 0) {
-                  mensualCardsContainer.innerHTML = `<p class="text-xs text-slate-400 col-span-3 py-2 text-center">Aún no hay ventas mensuales registradas.</p>`;
+                  mensualCardsContainer.innerHTML = `<p class="text-xs text-slate-400 col-span-3 py-2 text-center">Aún no hay ventas mensuales registradas este año.</p>`;
               } else {
                   mesesOrdenados.forEach(mesKey => {
                       const montoMes = acumuladoMensual[mesKey];
@@ -657,5 +673,7 @@ function cargarFlujoHoy() {
           if(document.getElementById('lblVentasDia')) document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
           if(document.getElementById('lblEfecHoy')) document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
           if(document.getElementById('lblQrHoy')) document.getElementById('lblQrHoy').textContent = `${qrHoy.toFixed(2)} Bs.`;
+      }, error => {
+          console.error("Error cargando flujo:", error);
       });
 }
