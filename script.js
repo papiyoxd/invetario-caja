@@ -122,9 +122,6 @@ loginForm.addEventListener('submit', async (e) => {
             cargarFlujoHoy();
             inicializarFormularioProductos(); 
             inicializarFormularioAbastecimiento();
-            
-            // Inicializa la escucha de registro de usuarios sin recargar la página
-            inicializarFormularioUsuarios(); 
         } else {
             alert('Contraseña incorrecta');
         }
@@ -143,58 +140,6 @@ function cerrarSesionSistema() {
 
 if (document.getElementById('btnLogout')) {
     document.getElementById('btnLogout').addEventListener('click', cerrarSesionSistema);
-}
-
-// ==========================================
-// REGISTRO SEGURO DE USUARIOS DESDE EL SAAS
-// ==========================================
-function inicializarFormularioUsuarios() {
-    const userForm = document.getElementById('userCreationForm');
-    if (!userForm) return;
-
-    // Clonamos para limpiar listeners previos y evitar duplicidad de envíos
-    userForm.replaceWith(userForm.cloneNode(true));
-    const cleanUserForm = document.getElementById('userCreationForm');
-
-    cleanUserForm.addEventListener('submit', async (e) => {
-        // !!! EVITA LA RECARGA DE PÁGINA !!! Así no pierdes el login de tu administrador
-        e.preventDefault(); 
-
-        const btnSubmit = cleanUserForm.querySelector('button[type="submit"]');
-        if (btnSubmit) btnSubmit.disabled = true;
-
-        const usernameVal = document.getElementById('newUsername').value.trim().toLowerCase();
-        const passwordVal = document.getElementById('newPassword').value;
-        const roleVal = document.getElementById('newUserRole').value;
-
-        try {
-            // 1. Validar si el usuario ya existe en Firestore
-            const existeQuery = await db.collection('usuarios').where('user', '==', usernameVal).get();
-            
-            if (!existeQuery.empty) {
-                alert("❌ Este nombre de usuario ya está registrado. Intenta con otro.");
-                if (btnSubmit) btnSubmit.disabled = false;
-                return;
-            }
-
-            // 2. Guardar en Firestore
-            await db.collection('usuarios').add({
-                user: usernameVal,
-                pass: passwordVal,
-                role: roleVal,
-                fechaCreacion: firebase.firestore.Timestamp.now()
-            });
-
-            alert(`✅ ¡Usuario "${usernameVal}" creado con éxito como ${roleVal.toUpperCase()}!`);
-            cleanUserForm.reset();
-
-        } catch (error) {
-            console.error("Error al registrar usuario:", error);
-            alert("Hubo un error al guardar el usuario en la base de datos.");
-        } finally {
-            if (btnSubmit) btnSubmit.disabled = false;
-        }
-    });
 }
 
 // ==========================================
@@ -337,7 +282,7 @@ function inicializarFormularioProductos() {
                 price: price,
                 stock: stock,
                 category: category,
-                imageUrl: imageUrlInput, 
+                imageUrl: imageUrlInput, // Guardamos directamente la URL que ingresó el cliente
                 fechaCreacion: firebase.firestore.Timestamp.now()
             });
 

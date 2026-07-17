@@ -3,309 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SaaS Inventario y Caja</title>
-    <!-- Tailwind CSS para diseño moderno y responsive -->
+    <title>Sistema de Inventario y Caja - Roberto</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome para iconos atractivos -->
+    <!-- Font Awesome para Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDK (Versiones de compatibilidad) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <style>
-        /* Estilos base del sistema */
+        .content-section { display: none; }
+        .active-section { display: block; }
         .product-card {
             background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 0.75rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.2s;
             position: relative;
-            transition: all 0.2s ease-in-out;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
         }
         .product-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
+        .prod-stock {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 20px;
+            z-index: 10;
+        }
+        .stock-alto { background: rgba(15, 23, 42, 0.85); color: white; }
+        .stock-bajo { background: #ef4444; color: white; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
         .prod-img {
-            width: 100%;
             height: 110px;
-            border-radius: 0.75rem;
-            overflow: hidden;
             background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
         .prod-img img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        .prod-stock {
-            position: absolute;
-            top: 0.5rem;
-            left: 0.5rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 9999px;
-            font-size: 0.65rem;
-            font-weight: 900;
-            color: white;
-            z-index: 10;
+        .prod-details { padding: 8px; }
+        .prod-details h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .stock-bajo { background-color: #ef4444; }
-        .stock-alto { background-color: #10b981; }
         .btn-add-fast {
-            background: #0f172a;
+            background: #10b981;
             color: white;
-            border-radius: 50%;
             width: 28px;
             height: 28px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.1rem;
             font-weight: bold;
             transition: background 0.2s;
         }
-        .btn-add-fast:hover { background: #334155; }
+        .btn-add-fast:hover { background: #059669; }
         .ticket-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px dashed #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px dashed #cbd5e1;
         }
-        .content-section { display: none; }
-        .active-section { display: block; }
+        .btn-option {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .btn-option.active {
+            background: #0f172a;
+            color: white;
+        }
         #sidebar {
             transition: transform 0.3s ease-in-out;
-            z-index: 50;
         }
         @media (max-width: 1023px) {
-            #sidebar { transform: translateX(-100%); }
-            #sidebar.open { transform: translateX(0); }
+            #sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
         }
-        /* Toast de éxito */
         #toastSuccess {
             position: fixed;
-            bottom: -100px;
-            right: 1.5rem;
-            transition: bottom 0.5s ease-in-out;
+            bottom: 20px;
+            right: 20px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 100;
         }
-        #toastSuccess.show { bottom: 1.5rem; }
+        #toastSuccess.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex">
+<body class="bg-slate-50 font-sans text-slate-800">
 
-    <!-- OVERLAY PARA MÓVILES -->
-    <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-40 z-40 hidden"></div>
-
-    <!-- SIDEBAR LATERAL -->
-    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 w-64 bg-slate-900 text-slate-300 flex flex-col justify-between border-r border-slate-800 h-screen">
-        <div>
-            <!-- Cabecera del Sidebar -->
-            <div class="p-5 flex items-center justify-between border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black">C</div>
-                    <span class="font-black text-white text-lg tracking-wide">CajaFacil SaaS</span>
+    <!-- PANTALLA DE LOGIN -->
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="w-16 h-16 bg-emerald-500 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-emerald-200">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800">¡Hola, Roberto!</h2>
+            <p class="text-xs text-slate-500 mb-6 mt-1">Inicia sesión para comenzar a vender hoy</p>
+            
+            <form id="loginForm" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Usuario</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="username" class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Tu usuario" required>
+                    </div>
                 </div>
-                <button id="btnCloseSidebar" class="lg:hidden text-slate-400 hover:text-white text-xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <!-- Menú de Navegación -->
-            <nav class="p-4 space-y-1.5">
-                <button data-target="salesSection" class="menu-item active flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 hover:text-white transition-all text-white bg-slate-800">
-                    <i class="fa-solid fa-cash-register text-base"></i> Caja / Ventas
-                </button>
-                <button data-target="inventarioSection" class="menu-item flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 hover:text-white transition-all">
-                    <i class="fa-solid fa-boxes-stacked text-base"></i> Inventario
-                </button>
-                <button data-target="adminSection" class="menu-item admin-only flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 hover:text-white transition-all">
-                    <i class="fa-solid fa-screwdriver-wrench text-base"></i> Panel Admin
-                </button>
-            </nav>
-        </div>
-
-        <!-- Perfil y Cierre de Sesión -->
-        <div class="p-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-3">
-                <div id="userAvatar" class="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-lg">-</div>
-                <div class="flex-1 min-w-0">
-                    <p id="userProfileName" class="text-sm font-bold text-white truncate">-</p>
-                    <span id="userRoleBadge" class="inline-block text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">-</span>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Contraseña</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input type="password" id="password" class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="••••••••" required>
+                    </div>
                 </div>
-            </div>
-            <button id="btnLogout" class="w-full bg-slate-800 hover:bg-red-600 hover:text-white text-slate-400 font-bold py-2 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2">
-                <i class="fa-solid fa-power-off"></i> Cerrar Sesión
-            </button>
-        </div>
-    </aside>
-
-    <!-- ÁREA DE CONTENIDO PRINCIPAL -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden">
-        <!-- Header de la Aplicación -->
-        <header class="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between flex-shrink-0">
-            <div class="flex items-center gap-4">
-                <button id="btnToggleSidebar" class="lg:hidden text-slate-600 hover:text-slate-900 text-xl">
-                    <i class="fa-solid fa-bars"></i>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 mt-2">
+                    Ingresar al Sistema <i class="fa-solid fa-arrow-right"></i>
                 </button>
-                <h2 id="pageTitle" class="text-xl font-black text-slate-800">Caja / Ventas</h2>
-            </div>
-            <div class="text-xs text-slate-400 font-semibold" id="currentDateDisplay">Monitoreo del Sistema</div>
-        </header>
+            </form>
+        </div>
+    </div>
 
-        <!-- Contenedor de Secciones (Scrollable) -->
-        <div class="flex-1 overflow-y-auto p-6">
+    <div class="flex h-screen overflow-hidden">
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-40 hidden"></div>
 
-            <!-- ==========================================
-                 SECCIÓN 1: CAJA / VENTAS
-                 ========================================== -->
-            <div id="salesSection" class="content-section active-section">
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full items-start">
+        <!-- BARRA LATERAL -->
+        <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between h-full border-r border-slate-800 shrink-0">
+            <div>
+                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-fire-burner"></i>
+                        </div>
+                        <span class="font-black text-white text-base tracking-wide">MI NEGOCIO</span>
+                    </div>
+                    <button id="btnCloseSidebar" class="lg:hidden text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-4 border-b border-slate-800 flex items-center gap-3">
+                    <div id="userAvatar" class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">R</div>
+                    <div>
+                        <h4 id="userProfileName" class="font-bold text-white text-sm">Roberto</h4>
+                        <span id="userRoleBadge" class="bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-500/30">Cajero</span>
+                    </div>
+                </div>
+
+                <nav class="p-4 space-y-1">
+                    <button data-target="secPuntoVenta" class="menu-item active flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white [&.active]:shadow-lg [&.active]:shadow-emerald-900/30">
+                        <i class="fa-solid fa-cash-register"></i> Punto de Venta
+                    </button>
+                    <button data-target="secHistorial" class="menu-item flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white">
+                        <i class="fa-solid fa-receipt"></i> Flujo & Arqueo
+                    </button>
+                    <button data-target="secInventario" class="menu-item admin-only flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white">
+                        <i class="fa-solid fa-boxes-stacked"></i> Administración
+                    </button>
                     
-                    <!-- Catálogo e Inventario de Productos -->
-                    <div class="xl:col-span-2 space-y-6">
-                        <!-- Buscador y Categorías -->
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
-                            <div class="relative w-full md:w-72">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                                <input type="text" id="searchInp" placeholder="Buscar producto..." class="w-full pl-9 pr-4 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <!-- Filtros rápidos -->
-                            <div class="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                                <button onclick="filtrarCategoria('Todos')" class="cat-filter-btn px-4 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white transition-all">Todos</button>
-                                <button onclick="filtrarCategoria('Comida')" class="cat-filter-btn px-4 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-600 border hover:bg-slate-50 transition-all">Comida</button>
-                                <button onclick="filtrarCategoria('Bebida')" class="cat-filter-btn px-4 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-600 border hover:bg-slate-50 transition-all">Bebida</button>
-                                <button onclick="filtrarCategoria('Postre')" class="cat-filter-btn px-4 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-600 border hover:bg-slate-50 transition-all">Postre</button>
-                            </div>
-                        </div>
-
-                        <!-- Grid de Productos -->
-                        <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                            <!-- Inyectado dinámicamente con JS -->
-                        </div>
-                    </div>
-
-                    <!-- Panel Lateral de Orden y Pago -->
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[calc(100vh-180px)] xl:h-auto min-h-[500px]">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="font-black text-slate-800 text-base">Detalle de la Orden</h3>
-                            <button id="btnLimpiarOrden" class="text-xs text-red-500 hover:text-red-700 font-bold transition-all">Limpiar todo</button>
-                        </div>
-
-                        <!-- Ticket items -->
-                        <div id="ticketList" class="flex-1 overflow-y-auto space-y-1 pr-1 border-b border-dashed border-slate-200">
-                            <!-- Inyectado dinámicamente con JS -->
-                        </div>
-
-                        <!-- Configuración de Servicio y Pago -->
-                        <div class="py-4 space-y-3">
-                            <!-- Servicio -->
-                            <div>
-                                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Destino / Servicio</span>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button id="btnServMesa" class="py-2 text-xs font-bold border rounded-xl active bg-slate-900 text-white">Mesa</button>
-                                    <button id="btnServLlevar" class="py-2 text-xs font-bold border rounded-xl bg-white text-slate-600 hover:bg-slate-50">Llevar</button>
-                                </div>
-                            </div>
-                            
-                            <!-- Pago -->
-                            <div>
-                                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Medio de Pago</span>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button id="btnPayEfectivo" class="py-2 text-xs font-bold border rounded-xl active bg-slate-900 text-white">Efectivo</button>
-                                    <button id="btnPayQR" class="py-2 text-xs font-bold border rounded-xl bg-white text-slate-600 hover:bg-slate-50">Pago QR</button>
-                                </div>
-                            </div>
-
-                            <!-- Panel de Cambio / Vuelto -->
-                            <div id="panelCalculadoraVuelto" class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="text-xs font-bold text-slate-500">Monto entregado:</span>
-                                    <input type="number" id="inpMontoPago" placeholder="0.00" step="any" class="w-24 text-right bg-white border rounded px-2 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                                </div>
-                                <div class="flex justify-between items-center mt-2 border-t pt-2 border-slate-200">
-                                    <span class="text-xs font-bold text-slate-500">Su cambio (Vuelto):</span>
-                                    <span id="lblVueltoCalculado" class="font-black text-slate-400">0.00 Bs.</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Totales y Acción final -->
-                        <div class="pt-4 border-t border-slate-200 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm font-bold text-slate-500">Total a pagar:</span>
-                                <span id="txtTotal" class="text-xl font-black text-indigo-600">0.00 Bs.</span>
-                            </div>
-                            <button id="btnPay" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="fa-solid fa-circle-check"></i> Registrar Venta
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                    <!-- NUEVO BOTÓN PARA GESTIÓN DE CAJEROS (SOLO ADMIN) -->
+                    <button data-target="secUsuarios" class="menu-item admin-only flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-slate-400 hover:bg-slate-800 hover:text-white [&.active]:bg-emerald-500 [&.active]:text-white">
+                        <i class="fa-solid fa-users-gear"></i> Gestión de Cajeros
+                    </button>
+                </nav>
             </div>
 
-            <!-- ==========================================
-                 SECCIÓN 2: INVENTARIO / CONTROL
-                 ========================================== -->
-            <div id="inventarioSection" class="content-section">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    <!-- Abastecimiento / Re-stock -->
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                        <h3 class="text-lg font-black text-slate-800">
-                            <i class="fa-solid fa-truck-ramp-box mr-2 text-indigo-600"></i> Abastecimiento Diario
-                        </h3>
-                        <p class="text-xs text-slate-400">Ingresa stock adicional a tus productos existentes de forma directa.</p>
-                        <form id="restockForm" class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Producto</label>
-                                <select id="restockProductSelect" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <option value="">-- Selecciona un Producto --</option>
-                                </select>
+            <div class="p-4 border-t border-slate-800">
+                <button id="btnLogout" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- CONTENIDO -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden">
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
+                <div class="flex items-center gap-4">
+                    <button id="btnToggleSidebar" class="lg:hidden text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <h2 id="pageTitle" class="text-xl font-black text-slate-800">Punto de Venta</h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase Online
+                    </span>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-6">
+
+                <!-- 1. PUNTO DE VENTA -->
+                <section id="secPuntoVenta" class="content-section active-section">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
+                        <div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </span>
+                                <input type="text" id="searchInp" class="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-sm" placeholder="Buscar producto...">
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cantidad a ingresar</label>
-                                <input type="number" id="restockQuantity" required min="1" placeholder="Ej: 12" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+
+                            <div class="flex gap-2 overflow-x-auto pb-1">
+                                <button onclick="filtrarCategoria('Todos')" class="cat-filter-btn px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">Todos</button>
+                                <button onclick="filtrarCategoria('Bebidas')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Bebidas</button>
+                                <button onclick="filtrarCategoria('Platos')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Platos</button>
+                                <button onclick="filtrarCategoria('Postres')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Postres</button>
+                                <button onclick="filtrarCategoria('Otros')" class="cat-filter-btn px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-xs font-bold whitespace-nowrap hover:bg-slate-50">Otros</button>
                             </div>
-                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-sm transition-all">
-                                <i class="fa-solid fa-plus mr-1"></i> Confirmar Ingreso
-                            </button>
-                        </form>
+
+                            <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3"></div>
+                        </div>
+
+                        <div class="lg:col-span-5 xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col">
+                            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                                <h3 class="font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-invoice text-emerald-500"></i> Orden Actual</h3>
+                                <button id="btnLimpiarOrden" class="text-xs text-red-500 hover:underline font-bold">Limpiar</button>
+                            </div>
+
+                            <div id="ticketList" class="flex-1 overflow-y-auto min-h-[160px] max-h-[240px] my-3 pr-1"></div>
+
+                            <div class="space-y-3 pt-3 border-t border-slate-200">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Servicio</label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button id="btnServMesa" class="btn-option active">Para Mesa</button>
+                                        <button id="btnServLlevar" class="btn-option">Para Llevar</button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Método de Pago</label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button id="btnPayEfectivo" class="btn-option active">Efectivo</button>
+                                        <button id="btnPayQR" class="btn-option">Código QR</button>
+                                    </div>
+                                </div>
+
+                                <!-- CALCULADORA DE VUELTO OPTIMIZADA PARA PC Y CELULAR -->
+                                <div id="panelCalculadoraVuelto" class="bg-slate-100 p-3 rounded-xl border border-slate-200 space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-600">Paga con (Bs.):</span>
+                                        <input type="number" id="inpMontoPago" class="w-24 text-right px-2 py-1 border border-slate-300 rounded-lg text-xs font-black focus:outline-none" placeholder="0.00">
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+                                        <span>Su Vuelto:</span>
+                                        <span id="lblVueltoCalculado" class="font-black text-emerald-600">0.00 Bs.</span>
+                                    </div>
+                                </div>
+
+                                <div class="bg-slate-900 p-3 rounded-xl flex items-center justify-between mt-2">
+                                    <span class="text-xs font-bold text-slate-400">Total a Pagar:</span>
+                                    <span id="txtTotal" class="text-lg font-black text-white">0.00 Bs.</span>
+                                </div>
+
+                                <button id="btnPay" disabled class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md text-sm">
+                                    Completar Venta
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. FLUJO & ARQUEO -->
+                <section id="secHistorial" class="content-section">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600"><i class="fa-solid fa-vault"></i></div>
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Mi Total Hoy</span>
+                                <span id="lblMiTotalHoy" class="text-sm font-black text-slate-800">0.00 Bs.</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600"><i class="fa-solid fa-chart-line"></i></div>
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Global Hoy</span>
+                                <span id="lblVentasDia" class="text-sm font-black text-slate-800">0.00 Bs.</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-600"><i class="fa-solid fa-money-bill-wave"></i></div>
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Efectivo Hoy</span>
+                                <span id="lblEfecHoy" class="text-sm font-black text-slate-800">0.00 Bs.</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                            <div class="w-10 h-10 bg-cyan-50 rounded-lg flex items-center justify-center text-cyan-600"><i class="fa-solid fa-qrcode"></i></div>
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Código QR Hoy</span>
+                                <span id="lblQrHoy" class="text-sm font-black text-slate-800">0.00 Bs.</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Visualización del Flujo de Caja e Historial de Ventas -->
-                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                        <div>
-                            <h3 class="text-lg font-black text-slate-800">Flujo de Caja Realizado Hoy</h3>
-                            <p class="text-xs text-slate-400">Monitoreo de ingresos de dinero y operaciones de facturación directa.</p>
+                    <!-- NUEVA SECCIÓN DE HISTORIAL DE VENTAS MENSUALES (SaaS) -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+                        <h3 class="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-days text-indigo-500"></i> Historial de Ventas Mensuales
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="mensualCardsContainer">
+                            <!-- Los bloques mensuales se inyectan dinámicamente con JavaScript -->
+                            <p class="text-xs text-slate-400 col-span-3 py-2 text-center">Cargando acumulados mensuales...</p>
                         </div>
-                        
-                        <!-- Tarjetas de Resumen Diario -->
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div class="p-4 bg-slate-50 border rounded-xl text-center">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Mis Ventas</span>
-                                <p id="lblMiTotalHoy" class="text-base font-black text-slate-800 mt-1">0.00 Bs.</p>
-                            </div>
-                            <div class="p-4 bg-slate-50 border rounded-xl text-center">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Venta Total</span>
-                                <p id="lblVentasDia" class="text-base font-black text-slate-800 mt-1">0.00 Bs.</p>
-                            </div>
-                            <div class="p-4 bg-slate-50 border rounded-xl text-center">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">En Efectivo</span>
-                                <p id="lblEfecHoy" class="text-base font-black text-emerald-600 mt-1">0.00 Bs.</p>
-                            </div>
-                            <div class="p-4 bg-slate-50 border rounded-xl text-center">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Por Código QR</span>
-                                <p id="lblQrHoy" class="text-base font-black text-blue-600 mt-1">0.00 Bs.</p>
-                            </div>
-                        </div>
+                    </div>
 
-                        <!-- Tabla de Movimientos del Día -->
-                        <div class="overflow-x-auto border rounded-xl">
-                            <table class="w-full text-left text-xs">
-                                <thead class="bg-slate-50 border-b text-slate-400 font-bold uppercase">
-                                    <tr>
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+                        <h3 class="text-sm font-black text-slate-800 mb-3"><i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Flujo Diario en Tiempo Real</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px]">
                                         <th class="py-2 px-3">Hora</th>
                                         <th class="py-2 px-3">Cajero</th>
                                         <th class="py-2 px-3">Productos</th>
@@ -314,200 +362,194 @@
                                         <th class="py-2 px-3 text-right">Monto</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tableCajeroPersonalBody" class="divide-y text-slate-600">
-                                    <!-- Inyectado dinámicamente con JS -->
-                                </tbody>
+                                <tbody id="tableCajeroPersonalBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
                             </table>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- ==========================================
-                 SECCIÓN 3: PANEL ADMINISTRADOR (SOLO ADMIN)
-                 ========================================== -->
-            <div id="adminSection" class="content-section admin-only">
-                <!-- Reporte de Control Mensual SaaS -->
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
-                    <h3 class="text-lg font-black text-slate-800 mb-2">Acumulado Mensual General (Año en Curso)</h3>
-                    <p class="text-xs text-slate-400 mb-4">Total de transacciones facturadas y agrupadas automáticamente por mes.</p>
-                    <div id="mensualCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <!-- Tarjetas de meses inyectadas dinámicamente -->
-                    </div>
-                </div>
-
-                <!-- Arqueo de Caja y Movimiento Semanal -->
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
-                    <h3 class="text-lg font-black text-slate-800 mb-1">Arqueo Diario de Caja (Historial Semanal)</h3>
-                    <p class="text-xs text-slate-400 mb-4">Verifica el desglose de productos vendidos y los montos por día de la semana.</p>
-                    <div class="overflow-x-auto border rounded-xl">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-slate-50 border-b text-slate-400 font-bold uppercase">
-                                <tr>
-                                    <th class="py-2.5 px-3">Día</th>
-                                    <th class="py-2.5 px-3">Productos Vendidos</th>
-                                    <th class="py-2.5 px-3">Efectivo Recibido</th>
-                                    <th class="py-2.5 px-3">Código QR</th>
-                                    <th class="py-2.5 px-3 text-right">Total Facturado</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tableArqueoCajaBody" class="divide-y text-slate-600">
-                                <!-- Inyectado dinámicamente con JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Crear Nuevos Productos -->
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                        <h3 class="text-lg font-black text-slate-800 mb-4">
-                            <i class="fa-solid fa-folder-plus mr-2 text-indigo-600"></i> Agregar Nuevo Producto
-                        </h3>
-                        <form id="productForm" class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
-                                    <input type="text" id="prodName" required placeholder="Ej: Pizza Personal" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoría</label>
-                                    <select id="prodCategory" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                        <option value="Comida">Comida</option>
-                                        <option value="Bebida">Bebida</option>
-                                        <option value="Postre">Postre</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Precio (Bs.)</label>
-                                    <input type="number" id="prodPrice" step="any" required placeholder="0.00" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Stock Inicial</label>
-                                    <input type="number" id="prodStock" required placeholder="0" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Enlace / URL de la Imagen</label>
-                                <input type="url" id="prodImageUrl" placeholder="https://unsplash.com/..." class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                            </div>
-                            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-lg text-sm transition-all">
-                                <i class="fa-solid fa-floppy-disk mr-1"></i> Registrar Producto
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- Tabla de Edición y Eliminación -->
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[400px]">
-                        <h3 class="text-lg font-black text-slate-800 mb-4">Listado de Inventario</h3>
-                        <div class="flex-1 overflow-y-auto border rounded-xl">
-                            <table class="w-full text-left text-xs">
-                                <thead class="bg-slate-50 border-b text-slate-400 font-bold uppercase sticky top-0">
-                                    <tr>
-                                        <th class="py-2.5 px-4">Producto</th>
-                                        <th class="py-2.5 px-4">Precio</th>
-                                        <th class="py-2.5 px-4">Stock</th>
-                                        <th class="py-2.5 px-4 text-right">Acción</th>
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                        <h3 class="text-sm font-black text-slate-800 mb-3"><i class="fa-solid fa-calculator text-emerald-500"></i> Arqueo de Caja Semanal</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px]">
+                                        <th class="py-2 px-3">Día</th>
+                                        <th class="py-2 px-3">Detalle</th>
+                                        <th class="py-2 px-3">Efectivo</th>
+                                        <th class="py-2 px-3">QR</th>
+                                        <th class="py-2 px-3 text-right">Total</th>
                                     </tr>
                                 </thead>
-                                <tbody id="adminProductsTableBody" class="divide-y text-slate-600">
-                                    <!-- Inyectado dinámicamente con JS -->
-                                </tbody>
+                                <tbody id="tableArqueoCajaBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
                             </table>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- ==========================================
-                     NUEVO: FORMULARIO DE REGISTRO DE USUARIOS
-                     ========================================== -->
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mt-6">
-                    <h3 class="text-lg font-black text-slate-800 mb-4">
-                        <i class="fa-solid fa-user-plus mr-2 text-indigo-600"></i> Registrar Nuevo Usuario
-                    </h3>
-                    <p class="text-xs text-slate-400 mb-4">Permite registrar nuevos cajeros o administradores en el sistema directamente sin tener que ingresar a Firebase.</p>
-                    
-                    <form id="userCreationForm" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <!-- Nombre de Usuario -->
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre de Usuario</label>
-                                <input type="text" id="newUsername" required placeholder="Ej: maria.lopez" 
-                                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                            </div>
+                <!-- 3. INVENTARIO & ADMINISTRACIÓN -->
+                <section id="secInventario" class="content-section admin-only">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        <div class="lg:col-span-4 space-y-6">
                             
-                            <!-- Contraseña -->
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
-                                <input type="password" id="newPassword" required placeholder="••••••••" 
-                                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                            <!-- ABASTECER -->
+                            <div class="bg-white p-5 rounded-2xl border border-emerald-300 bg-emerald-50/20 shadow-sm">
+                                <h3 class="text-sm font-black text-emerald-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-truck-ramp-box text-emerald-600"></i> Abastecer Stock de Hoy
+                                </h3>
+                                <form id="restockForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Selecciona el Producto</label>
+                                        <select id="restockProductSelect" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-bold text-slate-700" required>
+                                            <option value="">-- Selecciona un Producto --</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Cantidad Nueva</label>
+                                        <input type="number" id="restockQuantity" min="1" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700" placeholder="Ej. 10" required>
+                                    </div>
+                                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+                                        Sumar al Stock actual
+                                    </button>
+                                </form>
                             </div>
-                            
-                            <!-- Rol -->
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Rol en el Sistema</label>
-                                <select id="newUserRole" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <option value="cajero">Cajero</option>
-                                    <option value="admin">Administrador</option>
-                                </select>
+
+                            <!-- CREAR PRODUCTO CON URL DE FOTO -->
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-plus text-emerald-500"></i> Nuevo Producto
+                                </h3>
+                                <form id="productForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Nombre del Producto</label>
+                                        <input type="text" id="prodName" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="Ej. Coca Cola 2L" required>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Precio (Bs.)</label>
+                                            <input type="number" step="0.10" id="prodPrice" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="12.00" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Stock Inicial</label>
+                                            <input type="number" id="prodStock" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="10" required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Categoría</label>
+                                        <select id="prodCategory" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                                            <option value="Bebidas">Bebidas</option>
+                                            <option value="Platos">Platos</option>
+                                            <option value="Postres">Postres</option>
+                                            <option value="Otros">Otros</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 mb-1">Foto del Producto (Enlace URL de Google)</label>
+                                        <input type="url" id="prodImageUrl" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="https://ejemplo.com/foto.jpg">
+                                        <p class="text-[10px] text-slate-400 mt-1">Busca una imagen en Google, copia su dirección de imagen y pégala aquí.</p>
+                                    </div>
+                                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+                                        Guardar Nuevo Producto
+                                    </button>
+                                </form>
                             </div>
+
                         </div>
 
-                        <div class="flex justify-end mt-2">
-                            <button type="submit" id="btnSaveUser" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-lg text-sm transition-all flex items-center gap-2">
-                                <i class="fa-solid fa-floppy-disk"></i> Guardar Usuario
-                            </button>
+                        <div class="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">
+                                <i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Inventario Registrado
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-left text-xs">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
+                                            <th class="py-2.5 px-4">Producto</th>
+                                            <th class="py-2.5 px-4">Precio Unitario</th>
+                                            <th class="py-2.5 px-4">Stock en Sistema</th>
+                                            <th class="py-2.5 px-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminProductsTableBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
+                                </table>
+                            </div>
                         </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </main>
+                    </div>
+                </section>
 
-    <!-- PANTALLA / OVERLAY DE INICIO DE SESIÓN -->
-    <div id="loginOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-95 z-50 flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md space-y-6">
-            <div class="text-center space-y-2">
-                <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl font-black mx-auto shadow-lg shadow-indigo-200">C</div>
-                <h3 class="text-xl font-black text-slate-800">Iniciar Sesión</h3>
-                <p class="text-xs text-slate-400">Introduce tus credenciales para acceder al terminal de caja.</p>
+                <!-- 4. GESTIÓN DE USUARIOS / CAJEROS (NUEVO SECTOR) -->
+                <section id="secUsuarios" class="content-section admin-only">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        <!-- Formulario de Creación -->
+                        <div class="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-user-plus text-emerald-500"></i> Registrar Nuevo Cajero
+                            </h3>
+                            <form id="userRegistrationForm" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Nombre Completo</label>
+                                    <input type="text" id="regFullName" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="Ej. Juan Pérez" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Usuario de Acceso</label>
+                                    <input type="text" id="regUsername" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="Ej. juan.caja" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
+                                    <input type="password" id="regPassword" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs" placeholder="••••••••" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Rol en el Sistema</label>
+                                    <select id="regRole" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white font-bold text-slate-700">
+                                        <option value="cajero">Cajero</option>
+                                        <option value="administrador">Administrador</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+                                    Guardar Usuario
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Lista de Cajeros Existentes -->
+                        <div class="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h3 class="text-sm font-black text-slate-800 mb-4 uppercase tracking-wider">
+                                <i class="fa-solid fa-users text-indigo-500 mr-2"></i> Usuarios del Sistema
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-left text-xs">
+                                    <thead>
+                                        <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
+                                            <th class="py-2.5 px-4">Nombre</th>
+                                            <th class="py-2.5 px-4">Usuario</th>
+                                            <th class="py-2.5 px-4">Rol</th>
+                                            <th class="py-2.5 px-4 text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminUsersTableBody" class="text-slate-600 divide-y divide-slate-100">
+                                        <!-- Se inyectarán dinámicamente desde Firestore -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </div>
-            <form id="loginForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                        <input type="text" id="username" required placeholder="Introduce tu usuario" class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                        <input type="password" id="password" required placeholder="••••••••" class="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-100">
-                    Ingresar al Sistema <i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>
-                </button>
-            </form>
-        </div>
+        </main>
     </div>
 
-    <!-- TOAST NOTIFICACIÓN DE ÉXITO -->
-    <div id="toastSuccess" class="bg-slate-900 border border-slate-800 text-white py-3.5 px-5 rounded-2xl shadow-xl flex items-center gap-3">
-        <div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">
-            <i class="fa-solid fa-check"></i>
-        </div>
+    <!-- TOAST DE ÉXITO -->
+    <div id="toastSuccess" class="bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800">
+        <span class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-base"><i class="fa-solid fa-check"></i></span>
         <div>
-            <p class="text-xs font-bold text-white">¡Transacción Registrada!</p>
-            <p class="text-[10px] text-slate-400">Operación confirmada en la base de datos.</p>
+            <h4 class="font-bold text-xs">¡Operación guardada!</h4>
+            <p class="text-[10px] text-slate-400">Base de datos sincronizada.</p>
         </div>
     </div>
 
-    <!-- Script de lógica de la aplicación -->
-    <script src="app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
