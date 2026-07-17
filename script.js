@@ -703,3 +703,36 @@ document.getElementById('btnGuardarUser').addEventListener('click', async () => 
         alert("Error al guardar: " + error.message);
     }
 });
+// Este script busca la tabla o la crea automáticamente
+db.collection('usuarios').onSnapshot((snapshot) => {
+    // 1. Busca si ya existe un tbody, si no, lo busca por un id común
+    let tbody = document.querySelector('tbody');
+    
+    // Si no encuentra el tbody, busca el contenedor de la tabla y le inserta uno
+    if (!tbody) {
+        const tabla = document.querySelector('table');
+        if (tabla) {
+            tbody = document.createElement('tbody');
+            tabla.appendChild(tbody);
+        }
+    }
+
+    // 2. Si finalmente tenemos un tbody, lo llenamos
+    if (tbody) {
+        tbody.innerHTML = ''; // Limpiamos la tabla
+        
+        snapshot.forEach((doc) => {
+            const user = doc.data();
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td class="p-2">${user.name || 'N/A'}</td>
+                <td class="p-2">${user.user || 'N/A'}</td>
+                <td class="p-2">${user.role || 'N/A'}</td>
+                <td class="p-2">
+                    <button onclick="db.collection('usuarios').doc('${doc.id}').delete()" class="text-red-500 font-bold">Eliminar</button>
+                </td>
+            `;
+            tbody.appendChild(fila);
+        });
+    }
+});
