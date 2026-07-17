@@ -17,6 +17,9 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const storage = firebase.storage();
 
+// URL de imagen por defecto si se rompe o está vacía (comida elegante / plato)
+const DEFAULT_IMAGE_URL = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=200&h=150";
+
 // ==========================================
 // VARIABLES GLOBALES Y ESTADO
 // ==========================================
@@ -140,7 +143,7 @@ if (document.getElementById('btnLogout')) {
 }
 
 // ==========================================
-// FILTRADO Y RENDERIZADO DE PRODUCTOS
+// FILTRADO Y RENDERIZADO DE PRODUCTOS (CON FOTO)
 // ==========================================
 async function cargarProductos() {
     try {
@@ -189,14 +192,17 @@ function filtrarYAplicarProductos() {
     });
 }
 
+// Renderizado con validación de imagen rota (onerror)
 function renderizarTarjetaProducto(prod) {
     const card = document.createElement('div');
     card.className = 'product-card';
     const claseStock = prod.stock <= 3 ? 'stock-bajo' : 'stock-alto';
 
-    const imgContent = prod.imageUrl 
-        ? `<img src="${prod.imageUrl}" alt="${prod.name}">` 
-        : `<i class="fa-solid fa-utensils text-slate-400"></i>`;
+    // Si no hay URL, cargamos directamente la de por defecto
+    const urlFinal = prod.imageUrl && prod.imageUrl.trim() !== "" ? prod.imageUrl : DEFAULT_IMAGE_URL;
+
+    // Usamos el 'onerror' inline de HTML para respaldar si el enlace copiado falla
+    const imgContent = `<img src="${urlFinal}" onerror="this.onerror=null; this.src='${DEFAULT_IMAGE_URL}';" alt="${prod.name}">`;
 
     card.innerHTML = `
         <span class="prod-stock ${claseStock}">${prod.stock} u</span>
@@ -268,23 +274,15 @@ function inicializarFormularioProductos() {
         const price = parseFloat(document.getElementById('prodPrice').value);
         const stock = parseInt(document.getElementById('prodStock').value);
         const category = document.getElementById('prodCategory').value;
-        const fileInput = document.getElementById('prodImage');
+        const imageUrlInput = document.getElementById('prodImageUrl').value.trim();
 
         try {
-            let imageUrl = "";
-            if (fileInput && fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const storageRef = storage.ref(`productos/${Date.now()}_${file.name}`);
-                const uploadTask = await storageRef.put(file);
-                imageUrl = await uploadTask.ref.getDownloadURL();
-            }
-
             await db.collection('productos').add({
                 name: name,
                 price: price,
                 stock: stock,
                 category: category,
-                imageUrl: imageUrl,
+                imageUrl: imageUrlInput, // Guardamos directamente la URL que ingresó el cliente
                 fechaCreacion: firebase.firestore.Timestamp.now()
             });
 
@@ -457,8 +455,6 @@ inpMontoPago.addEventListener('input', calcularVuelto);
 // ==========================================
 btnPay.addEventListener('click', () => {
     if (carrito.length === 0) return;
-    
-    // Tanto Efectivo como QR se envían directo a Firebase sin popups de imágenes
     procesarVentaEnFirebase();
 });
 
@@ -512,10 +508,12 @@ async function procesarVentaEnFirebase() {
 }
 
 // ==========================================
-// FLUJO HISTORIAL Y ARQUEO DE CAJA
+// FLUJO HISTORIAL Y ARQUEO DE CAJA + REPORTE MENSUAL (SaaS)
 // ==========================================
 function cargarFlujoHoy() {
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const mesesAnio = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    
     const inicioHoy = new Date();
     inicioHoy.setHours(0,0,0,0);
 
@@ -523,8 +521,8 @@ function cargarFlujoHoy() {
     haceSieteDias.setDate(haceSieteDias.getDate() - 7);
     haceSieteDias.setHours(0,0,0,0);
 
+    // Para reportes mensuales leemos todo el historial de ventas
     db.collection('ventas')
-      .where('fecha', '>=', haceSieteDias)
       .orderBy('fecha', 'desc')
       .onSnapshot(snapshot => {
           
@@ -538,26 +536,44 @@ function cargarFlujoHoy() {
               arqueoSemanal[d] = { total: 0, efectivo: 0, qr: 0, productos: {} };
           });
 
+          // Objeto para acumular montos por mes (Ej. "Julio 2026": 5000)
+          const acumuladoMensual = {};
+
           snapshot.forEach(doc => {
               const v = doc.data();
               const fechaVenta = v.fecha ? v.fecha.toDate() : new Date();
               const nombreDia = diasSemana[fechaVenta.getDay()];
+              
+              // 1. Lógica SaaS: Agrupación y suma Mensual
+              const mesNombre = mesesAnio[fechaVenta.getMonth()];
+              const anioNumero = fechaVenta.getFullYear();
+              const llaveMes = `${mesNombre} ${anioNumero}`; // Ej: "Julio 2026"
 
               if (v.monto) {
-                  arqueoSemanal[nombreDia].total += v.monto;
-                  if (v.pago === 'Efectivo') arqueoSemanal[nombreDia].efectivo += v.monto;
-                  if (v.pago === 'QR') arqueoSemanal[nombreDia].qr += v.monto;
+                  // Sumar al reporte mensual general
+                  if (!acumuladoMensual[llaveMes]) {
+                      acumuladoMensual[llaveMes] = 0;
+                  }
+                  acumuladoMensual[llaveMes] += v.monto;
 
-                  if (v.itemsDetallados && Array.isArray(v.itemsDetallados)) {
-                      v.itemsDetallados.forEach(it => {
-                          if (!arqueoSemanal[nombreDia].productos[it.name]) {
-                              arqueoSemanal[nombreDia].productos[it.name] = 0;
-                          }
-                          arqueoSemanal[nombreDia].productos[it.name] += it.cantidad;
-                      });
+                  // Guardar datos solo de los últimos 7 días para el arqueo diario
+                  if (fechaVenta >= haceSieteDias) {
+                      arqueoSemanal[nombreDia].total += v.monto;
+                      if (v.pago === 'Efectivo') arqueoSemanal[nombreDia].efectivo += v.monto;
+                      if (v.pago === 'QR') arqueoSemanal[nombreDia].qr += v.monto;
+
+                      if (v.itemsDetallados && Array.isArray(v.itemsDetallados)) {
+                          v.itemsDetallados.forEach(it => {
+                              if (!arqueoSemanal[nombreDia].productos[it.name]) {
+                                  arqueoSemanal[nombreDia].productos[it.name] = 0;
+                              }
+                              arqueoSemanal[nombreDia].productos[it.name] += it.cantidad;
+                          });
+                      }
                   }
               }
 
+              // 2. Filtrado exclusivo de hoy para las tarjetas de control del cajero
               if (fechaVenta >= inicioHoy) {
                   globalDia += v.monto;
                   if (v.cajero === currentUser.user) miTotalHoy += v.monto;
@@ -589,6 +605,29 @@ function cargarFlujoHoy() {
               }
           });
 
+          // RENDERIZAR REPORTE MENSUAL (SaaS)
+          const mensualCardsContainer = document.getElementById('mensualCardsContainer');
+          if (mensualCardsContainer) {
+              mensualCardsContainer.innerHTML = '';
+              const mesesOrdenados = Object.keys(acumuladoMensual);
+
+              if (mesesOrdenados.length === 0) {
+                  mensualCardsContainer.innerHTML = `<p class="text-xs text-slate-400 col-span-3 py-2 text-center">Aún no hay ventas mensuales registradas.</p>`;
+              } else {
+                  mesesOrdenados.forEach(mesKey => {
+                      const montoMes = acumuladoMensual[mesKey];
+                      const card = document.createElement('div');
+                      card.className = "bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-inner flex flex-col justify-between";
+                      card.innerHTML = `
+                          <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">${mesKey}</span>
+                          <span class="text-lg font-black text-indigo-600 mt-1">${montoMes.toFixed(2)} Bs.</span>
+                      `;
+                      mensualCardsContainer.appendChild(card);
+                  });
+              }
+          }
+
+          // RENDERIZAR ARQUEO SEMANAL
           const tbodyArqueo = document.getElementById('tableArqueoCajaBody');
           if (tbodyArqueo) {
               tbodyArqueo.innerHTML = '';
@@ -613,6 +652,7 @@ function cargarFlujoHoy() {
               });
           }
 
+          // Actualizar etiquetas globales en pantalla
           if(document.getElementById('lblMiTotalHoy')) document.getElementById('lblMiTotalHoy').textContent = `${miTotalHoy.toFixed(2)} Bs.`;
           if(document.getElementById('lblVentasDia')) document.getElementById('lblVentasDia').textContent = `${globalDia.toFixed(2)} Bs.`;
           if(document.getElementById('lblEfecHoy')) document.getElementById('lblEfecHoy').textContent = `${efecHoy.toFixed(2)} Bs.`;
