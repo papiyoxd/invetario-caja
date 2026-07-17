@@ -677,3 +677,29 @@ function cargarFlujoHoy() {
           console.error("Error cargando flujo:", error);
       });
 }
+document.getElementById('btnGuardarUser').addEventListener('click', async () => {
+    // 1. Obtenemos los valores
+    const name = document.getElementById('regFullName').value;
+    const user = document.getElementById('regUsername').value;
+    const pass = document.getElementById('regPassword').value;
+    const role = document.getElementById('regRole').value;
+
+    // 2. Guardamos en Firebase
+    try {
+        await db.collection('usuarios').add({
+            name: name,
+            user: user,
+            pass: pass,
+            role: role
+        });
+        
+        alert("Usuario guardado con éxito");
+        
+        // 3. Limpiamos los campos
+        document.getElementById('regFullName').value = '';
+        document.getElementById('regUsername').value = '';
+        document.getElementById('regPassword').value = '';
+    } catch (error) {
+        alert("Error al guardar: " + error.message);
+    }
+});
