@@ -224,6 +224,10 @@ searchInp.addEventListener('input', filtrarYAplicarProductos);
 // ELIMINAR Y GESTIONAR PRODUCTOS (ADMIN)
 // ==========================================
 window.eliminarProductoDelSistema = async function(id, nombre) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('Solo el administrador puede eliminar productos.');
+        return;
+    }
     if (confirm(`¿Estás seguro de que quieres eliminar "${nombre}" del inventario?`)) {
         try {
             await db.collection('productos').doc(id).delete();
@@ -231,6 +235,33 @@ window.eliminarProductoDelSistema = async function(id, nombre) {
         } catch (error) {
             console.error("Error al eliminar producto:", error);
         }
+    }
+};
+
+window.editarPrecioProducto = async function(id) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('Solo el administrador puede cambiar precios.');
+        return;
+    }
+
+    const producto = productosGlobales.find(prod => prod.id === id);
+    if (!producto) return;
+
+    const nuevoPrecioTexto = prompt(`Nuevo precio para ${producto.name} (Bs.):`, Number(producto.price).toFixed(2));
+    if (nuevoPrecioTexto === null) return;
+
+    const nuevoPrecio = Number(nuevoPrecioTexto.replace(',', '.'));
+    if (!Number.isFinite(nuevoPrecio) || nuevoPrecio < 0) {
+        alert('Ingresa un precio válido.');
+        return;
+    }
+
+    try {
+        await db.collection('productos').doc(id).update({ price: nuevoPrecio });
+        alert('Precio actualizado correctamente.');
+    } catch (error) {
+        console.error('Error al actualizar el precio:', error);
+        alert('No se pudo actualizar el precio.');
     }
 };
 
@@ -246,6 +277,9 @@ function renderizarTablaAdministracionInventario() {
             <td class="px-4 py-2">${parseFloat(prod.price).toFixed(2)} Bs.</td>
             <td class="px-4 py-2 font-black ${prod.stock <= 3 ? 'text-red-500' : 'text-emerald-600'}">${prod.stock} u</td>
             <td class="px-4 py-2 text-right">
+                <button onclick="editarPrecioProducto('${prod.id}')" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1 px-3 rounded text-xs transition-all mr-1">
+                    <i class="fa-solid fa-pen mr-1"></i> Editar precio
+                </button>
                 <button onclick="eliminarProductoDelSistema('${prod.id}', '${prod.name}')" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs transition-all">
                     <i class="fa-solid fa-trash-can mr-1"></i> Eliminar
                 </button>
@@ -484,7 +518,7 @@ async function procesarVentaEnFirebase() {
     
     const itemsArray = carrito.map(i => {
         totalFactura += (i.price * i.cantidad);
-        return { name: i.name, cantidad: i.cantidad };
+        return { productId: i.id, name: i.name, cantidad: i.cantidad };
     });
 
     const itemsResumenText = itemsArray.map(i => `${i.name} (x${i.cantidad})`).join(', ');
@@ -526,6 +560,63 @@ async function procesarVentaEnFirebase() {
         btnPay.disabled = false;
     }
 }
+
+// ==========================================
+// ELIMINAR VENTAS DE PRUEBA (SOLO ADMIN)
+// ==========================================
+window.eliminarVentaDelSistema = async function(ventaId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('Solo el administrador puede eliminar ventas.');
+        return;
+    }
+
+    if (!confirm('¿Eliminar esta venta? El stock de sus productos será devuelto.')) return;
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const ventaRef = db.collection('ventas').doc(ventaId);
+            const ventaDoc = await transaction.get(ventaRef);
+            if (!ventaDoc.exists) throw new Error('La venta ya no existe.');
+
+            const venta = ventaDoc.data();
+            const cantidadesPorProducto = new Map();
+            const items = Array.isArray(venta.itemsDetallados) ? venta.itemsDetallados : [];
+
+            items.forEach(item => {
+                const productoActual = item.productId
+                    ? productosGlobales.find(prod => prod.id === item.productId)
+                    : productosGlobales.find(prod => prod.name === item.name);
+                const productoId = item.productId || (productoActual && productoActual.id);
+                const cantidad = Number(item.cantidad) || 0;
+
+                if (productoId && cantidad > 0) {
+                    cantidadesPorProducto.set(productoId, (cantidadesPorProducto.get(productoId) || 0) + cantidad);
+                }
+            });
+
+            const productosLeidos = [];
+            for (const [productoId, cantidad] of cantidadesPorProducto) {
+                const productoRef = db.collection('productos').doc(productoId);
+                const productoDoc = await transaction.get(productoRef);
+                productosLeidos.push({ productoRef, productoDoc, cantidad });
+            }
+
+            productosLeidos.forEach(({ productoRef, productoDoc, cantidad }) => {
+                if (productoDoc.exists) {
+                    const stockActual = Number(productoDoc.data().stock) || 0;
+                    transaction.update(productoRef, { stock: stockActual + cantidad });
+                }
+            });
+
+            transaction.delete(ventaRef);
+        });
+
+        alert('Venta eliminada y stock devuelto correctamente.');
+    } catch (error) {
+        console.error('Error al eliminar la venta:', error);
+        alert('No se pudo eliminar la venta.');
+    }
+};
 
 // ==========================================
 // FLUJO HISTORIAL Y ARQUEO DE CAJA + REPORTE MENSUAL OPTIMIZADO (SaaS)
@@ -617,6 +708,9 @@ function cargarFlujoHoy() {
                   if (v.pago === 'QR') qrHoy += montoValido;
 
                   const hora = fechaVenta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                  const accionVenta = currentUser && currentUser.role === 'admin'
+                      ? `<td class="py-2 px-3 text-right"><button onclick="eliminarVentaDelSistema('${doc.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold">Eliminar</button></td>`
+                      : '<td class="py-2 px-3"></td>';
 
                   if (tbodyFlujo) {
                       const tr = document.createElement('tr');
@@ -635,6 +729,7 @@ function cargarFlujoHoy() {
                               </span>
                           </td>
                           <td class="py-2 px-3 text-right font-black text-slate-800">${montoValido.toFixed(2)} Bs.</td>
+                          ${accionVenta}
                       `;
                       tbodyFlujo.appendChild(tr);
                   }
