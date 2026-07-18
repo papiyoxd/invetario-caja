@@ -399,6 +399,8 @@ function actualizarTicketDOM() {
     });
 
     txtTotal.textContent = `${total.toFixed(2)} Bs.`;
+    const totalQR = document.getElementById('totalQR');
+    if (totalQR) totalQR.textContent = txtTotal.textContent;
     btnPay.disabled = carrito.length === 0;
     calcularVuelto();
 }
