@@ -423,15 +423,33 @@ document.getElementById('btnServLlevar').addEventListener('click', function() {
     servicioSeleccionado = "Llevar";
 });
 
+const panelQR = document.getElementById("panelQR");
+
 document.getElementById('btnPayEfectivo').addEventListener('click', function() {
-    this.classList.add('active'); document.getElementById('btnPayQR').classList.remove('active');
+
+    this.classList.add('active');
+    document.getElementById('btnPayQR').classList.remove('active');
+
     pagoSeleccionado = "Efectivo";
+
     panelVuelto.style.display = "block";
+    panelQR.style.display = "none";
+
 });
+
 document.getElementById('btnPayQR').addEventListener('click', function() {
-    this.classList.add('active'); document.getElementById('btnPayEfectivo').classList.remove('active');
+
+    this.classList.add('active');
+    document.getElementById('btnPayEfectivo').classList.remove('active');
+
     pagoSeleccionado = "QR";
+
     panelVuelto.style.display = "none";
+    panelQR.style.display = "block";
+
+    document.getElementById("totalQR").innerText =
+        document.getElementById("txtTotal").innerText;
+
 });
 
 // CALCULADORA DE VUELTO COMPATIBLE CON MÓVILES (EVENTO 'INPUT')
